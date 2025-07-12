@@ -26,9 +26,9 @@ services:
       context: .
       dockerfile: ./order-service/app.dockerfile
     depends_on:
-      - order_db
+      - cassandra
     environment:
-      DATABASE_URL: postgres://user:user@order_db:5432/postgres?sslmode=disable
+      DATABASE_URL: cassandra
       ACCOUNT_SERVICE_URL: http://account-service:8080
       CATALOG_SERVICE_URL: http://catalog-service:8080
     restart: on-failure
@@ -66,12 +66,10 @@ services:
       discovery.type: single-node
     restart: unless-stopped
 
-  order_db:
+  cassandra:
     build:
       context: ./order-service
       dockerfile: ./db.dockerfile
-    environment:
-      POSTGRES_DB: postgres
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: user
+    ports:
+      - "9042:9042"
     restart: unless-stopped

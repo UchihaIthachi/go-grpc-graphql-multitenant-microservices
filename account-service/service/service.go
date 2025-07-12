@@ -9,9 +9,10 @@ import (
 )
 
 type Service interface {
-	PostAccount(ctx context.Context, name string) (*domain.Account, error)
-	GetAccount(ctx context.Context, id string) (*domain.Account, error)
-	GetAccounts(ctx context.Context, skip uint64, take uint64) ([]domain.Account, error)
+	CreateTenant(ctx context.Context, name string) (*domain.Tenant, error)
+	PostAccount(ctx context.Context, tenantID, name string) (*domain.Account, error)
+	GetAccount(ctx context.Context, tenantID, id string) (*domain.Account, error)
+	GetAccounts(ctx context.Context, tenantID string, skip uint64, take uint64) ([]domain.Account, error)
 }
 
 type accountService struct {
@@ -22,10 +23,15 @@ func NewService(r repository.Repository) Service {
 	return &accountService{r}
 }
 
-func (s *accountService) PostAccount(ctx context.Context, name string) (*domain.Account, error) {
+func (s *accountService) CreateTenant(ctx context.Context, name string) (*domain.Tenant, error) {
+	return s.repository.CreateTenant(ctx, name)
+}
+
+func (s *accountService) PostAccount(ctx context.Context, tenantID, name string) (*domain.Account, error) {
 	a := &domain.Account{
-		Name: name,
-		ID:   ksuid.New().String(),
+		Name:     name,
+		ID:       ksuid.New().String(),
+		TenantID: tenantID,
 	}
 	if err := s.repository.PutAccount(ctx, *a); err != nil {
 		return nil, err
@@ -33,13 +39,13 @@ func (s *accountService) PostAccount(ctx context.Context, name string) (*domain.
 	return a, nil
 }
 
-func (s *accountService) GetAccount(ctx context.Context, id string) (*domain.Account, error) {
-	return s.repository.GetAccountByID(ctx, id)
+func (s *accountService) GetAccount(ctx context.Context, tenantID, id string) (*domain.Account, error) {
+	return s.repository.GetAccountByID(ctx, tenantID, id)
 }
 
-func (s *accountService) GetAccounts(ctx context.Context, skip uint64, take uint64) ([]domain.Account, error) {
+func (s *accountService) GetAccounts(ctx context.Context, tenantID string, skip uint64, take uint64) ([]domain.Account, error) {
 	if take > 100 || (skip == 0 && take == 0) {
 		take = 100
 	}
-	return s.repository.ListAccounts(ctx, skip, take)
+	return s.repository.ListAccounts(ctx, tenantID, skip, take)
 }
