@@ -1,4 +1,4 @@
-module github.com/akhilsharma90/go-graphql-microservice
+module github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices
 
 go 1.13
 
