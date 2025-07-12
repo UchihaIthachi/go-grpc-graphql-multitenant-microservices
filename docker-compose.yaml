@@ -1,56 +1,57 @@
 version: "3.7"
 
 services:
-  account:
+  account-service:
     build:
       context: .
-      dockerfile: ./account/app.dockerfile
+      dockerfile: ./account-service/app.dockerfile
     depends_on:
       - account_db
     environment:
-      DATABASE_URL: postgres://akhil:123456@account_db/akhil?sslmode=disable
+      DATABASE_URL: postgres://akhil:123456@account_db:5432/akhil?sslmode=disable
     restart: on-failure
 
-  catalog:
+  catalog-service:
     build:
       context: .
-      dockerfile: ./catalog/app.dockerfile
+      dockerfile: ./catalog-service/app.dockerfile
     depends_on:
       - catalog_db
     environment:
       DATABASE_URL: http://catalog_db:9200
     restart: on-failure
 
-  order:
+  order-service:
     build:
       context: .
-      dockerfile: ./order/app.dockerfile
+      dockerfile: ./order-service/app.dockerfile
     depends_on:
       - order_db
     environment:
-      DATABASE_URL: postgres://akhil:123456@order_db/akhil?sslmode=disable
-      ACCOUNT_SERVICE_URL: account:8080
-      CATALOG_SERVICE_URL: catalog:8080
+      DATABASE_URL: postgres://user:user@order_db:5432/postgres?sslmode=disable
+      ACCOUNT_SERVICE_URL: http://account-service:8080
+      CATALOG_SERVICE_URL: http://catalog-service:8080
     restart: on-failure
 
-  graphql:
+  api-gateway:
     build:
       context: .
-      dockerfile: ./graphql/app.dockerfile
+      dockerfile: ./api-gateway/app.dockerfile
     ports:
       - 8000:8080
     depends_on:
-      - account
-      - catalog
+      - account-service
+      - catalog-service
+      - order-service
     environment:
-      ACCOUNT_SERVICE_URL: account:8080
-      CATALOG_SERVICE_URL: catalog:8080
-      ORDER_SERVICE_URL: order:8080
+      ACCOUNT_SERVICE_URL: http://account-service:8080
+      CATALOG_SERVICE_URL: http://catalog-service:8080
+      ORDER_SERVICE_URL: http://order-service:8080
     restart: on-failure
 
   account_db:
     build:
-      context: ./account
+      context: ./account-service
       dockerfile: ./db.dockerfile
     environment:
       POSTGRES_DB: akhil
@@ -63,13 +64,14 @@ services:
     environment:
       ES_JAVA_OPTS: -Xms1g -Xmx1g
       discovery.type: single-node
+    restart: unless-stopped
 
   order_db:
     build:
-      context: ./order
+      context: ./order-service
       dockerfile: ./db.dockerfile
     environment:
-      POSTGRES_DB: akhil
-      POSTGRES_USER: akhil
-      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: postgres
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: user
     restart: unless-stopped

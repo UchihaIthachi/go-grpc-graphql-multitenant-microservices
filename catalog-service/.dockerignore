@@ -1,0 +1,40 @@
+# Go build and cache
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# Output binary
+/go/bin/
+app
+
+# OS / Editor / IDE junk
+.DS_Store
+*.swp
+*.swo
+*.bak
+*.tmp
+*.log
+*.out
+
+# Git and version control
+.git
+.gitignore
+
+# Dependency and module cache
+vendor/**/testdata/
+pkg/
+*.mod~
+*.sum~
+
+# Node-related files (if frontend exists in monorepo)
+node_modules/
+dist/
+build/
+.vscode/
+.idea/
+.env
+.env.*
