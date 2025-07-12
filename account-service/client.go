@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/account-service/domain"
-	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/account/pb"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/account-service/pb"
 	"google.golang.org/grpc"
 )
 
