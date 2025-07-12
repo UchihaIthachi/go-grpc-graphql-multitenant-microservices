@@ -1,16 +1,17 @@
-package order
+package repository
 
 import (
 	"context"
 	"database/sql"
 
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order-service/domain"
 	"github.com/lib/pq"
 )
 
 type Repository interface {
 	Close()
-	PutOrder(ctx context.Context, o Order) error
-	GetOrdersForAccount(ctx context.Context, accountID string) ([]Order, error)
+	PutOrder(ctx context.Context, o domain.Order) error
+	GetOrdersForAccount(ctx context.Context, accountID string) ([]domain.Order, error)
 }
 
 type postgresRepository struct {
@@ -33,7 +34,7 @@ func (r *postgresRepository) Close() {
 	r.db.Close()
 }
 
-func (r *postgresRepository) PutOrder(ctx context.Context, o Order) (err error) {
+func (r *postgresRepository) PutOrder(ctx context.Context, o domain.Order) (err error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -76,7 +77,7 @@ func (r *postgresRepository) PutOrder(ctx context.Context, o Order) (err error) 
 	return
 }
 
-func (r *postgresRepository) GetOrdersForAccount(ctx context.Context, accountID string) ([]Order, error) {
+func (r *postgresRepository) GetOrdersForAccount(ctx context.Context, accountID string) ([]domain.Order, error) {
 	rows, err := r.db.QueryContext(
 		ctx,
 		`SELECT
@@ -96,11 +97,11 @@ func (r *postgresRepository) GetOrdersForAccount(ctx context.Context, accountID 
 	}
 	defer rows.Close()
 
-	orders := []Order{}
-	order := &Order{}
-	lastOrder := &Order{}
-	orderedProduct := &OrderedProduct{}
-	products := []OrderedProduct{}
+	orders := []domain.Order{}
+	order := &domain.Order{}
+	lastOrder := &domain.Order{}
+	orderedProduct := &domain.OrderedProduct{}
+	products := []domain.OrderedProduct{}
 
 	// Scan rows into Order structs
 	for rows.Next() {
@@ -116,7 +117,7 @@ func (r *postgresRepository) GetOrdersForAccount(ctx context.Context, accountID 
 		}
 		// Scan order
 		if lastOrder.ID != "" && lastOrder.ID != order.ID {
-			newOrder := Order{
+			newOrder := domain.Order{
 				ID:         lastOrder.ID,
 				AccountID:  lastOrder.AccountID,
 				CreatedAt:  lastOrder.CreatedAt,
@@ -124,10 +125,10 @@ func (r *postgresRepository) GetOrdersForAccount(ctx context.Context, accountID 
 				Products:   products,
 			}
 			orders = append(orders, newOrder)
-			products = []OrderedProduct{}
+			products = []domain.OrderedProduct{}
 		}
 		// Scan products
-		products = append(products, OrderedProduct{
+		products = append(products, domain.OrderedProduct{
 			ID:       orderedProduct.ID,
 			Quantity: orderedProduct.Quantity,
 		})
@@ -137,7 +138,7 @@ func (r *postgresRepository) GetOrdersForAccount(ctx context.Context, accountID 
 
 	// Add last order (or first :D)
 	if lastOrder != nil {
-		newOrder := Order{
+		newOrder := domain.Order{
 			ID:         lastOrder.ID,
 			AccountID:  lastOrder.AccountID,
 			CreatedAt:  lastOrder.CreatedAt,

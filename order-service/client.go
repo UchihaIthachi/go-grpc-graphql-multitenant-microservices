@@ -5,7 +5,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/akhilsharma90/go-graphql-microservice/order/pb"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order-service/domain"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order/pb"
 	"google.golang.org/grpc"
 )
 
@@ -30,8 +31,8 @@ func (c *Client) Close() {
 func (c *Client) PostOrder(
 	ctx context.Context,
 	accountID string,
-	products []OrderedProduct,
-) (*Order, error) {
+	products []domain.OrderedProduct,
+) (*domain.Order, error) {
 	protoProducts := []*pb.PostOrderRequest_OrderProduct{}
 	for _, p := range products {
 		protoProducts = append(protoProducts, &pb.PostOrderRequest_OrderProduct{
@@ -55,7 +56,7 @@ func (c *Client) PostOrder(
 	newOrderCreatedAt := time.Time{}
 	newOrderCreatedAt.UnmarshalBinary(newOrder.CreatedAt)
 
-	return &Order{
+	return &domain.Order{
 		ID:         newOrder.Id,
 		CreatedAt:  newOrderCreatedAt,
 		TotalPrice: newOrder.TotalPrice,
@@ -64,7 +65,7 @@ func (c *Client) PostOrder(
 	}, nil
 }
 
-func (c *Client) GetOrdersForAccount(ctx context.Context, accountID string) ([]Order, error) {
+func (c *Client) GetOrdersForAccount(ctx context.Context, accountID string) ([]domain.Order, error) {
 	r, err := c.service.GetOrdersForAccount(ctx, &pb.GetOrdersForAccountRequest{
 		AccountId: accountID,
 	})
@@ -74,9 +75,9 @@ func (c *Client) GetOrdersForAccount(ctx context.Context, accountID string) ([]O
 	}
 
 	// Create response orders
-	orders := []Order{}
+	orders := []domain.Order{}
 	for _, orderProto := range r.Orders {
-		newOrder := Order{
+		newOrder := domain.Order{
 			ID:         orderProto.Id,
 			TotalPrice: orderProto.TotalPrice,
 			AccountID:  orderProto.AccountId,
@@ -84,9 +85,9 @@ func (c *Client) GetOrdersForAccount(ctx context.Context, accountID string) ([]O
 		newOrder.CreatedAt = time.Time{}
 		newOrder.CreatedAt.UnmarshalBinary(orderProto.CreatedAt)
 
-		products := []OrderedProduct{}
+		products := []domain.OrderedProduct{}
 		for _, p := range orderProto.Products {
-			products = append(products, OrderedProduct{
+			products = append(products, domain.OrderedProduct{
 				ID:          p.Id,
 				Quantity:    p.Quantity,
 				Name:        p.Name,

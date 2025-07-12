@@ -4,7 +4,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/akhilsharma90/go-graphql-microservice/order"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order-service/handler"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order-service/repository"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order-service/service"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/tinrab/retry"
 )
@@ -22,9 +24,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	var r order.Repository
+	var r repository.Repository
 	retry.ForeverSleep(2*time.Second, func(_ int) (err error) {
-		r, err = order.NewPostgresRepository(cfg.DatabaseURL)
+		r, err = repository.NewPostgresRepository(cfg.DatabaseURL)
 		if err != nil {
 			log.Println(err)
 		}
@@ -33,6 +35,6 @@ func main() {
 	defer r.Close()
 
 	log.Println("Listening on port 8080...")
-	s := order.NewService(r)
-	log.Fatal(order.ListenGRPC(s, cfg.AccountURL, cfg.CatalogURL, 8080))
+	s := service.NewService(r)
+	log.Fatal(handler.ListenGRPC(s, cfg.AccountURL, cfg.CatalogURL, 8080))
 }

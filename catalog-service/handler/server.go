@@ -1,5 +1,5 @@
 //go:generate protoc ./catalog.proto --go_out=plugins=grpc:./pb
-package catalog
+package handler
 
 import (
 	"context"
@@ -7,16 +7,18 @@ import (
 	"log"
 	"net"
 
-	"github.com/akhilsharma90/go-graphql-microservice/catalog/pb"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/catalog-service/domain"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/catalog-service/service"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/catalog/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
 
 type grpcServer struct {
-	service Service
+	service service.Service
 }
 
-func ListenGRPC(s Service, port int) error {
+func ListenGRPC(s service.Service, port int) error {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return err
@@ -58,7 +60,7 @@ func (s *grpcServer) GetProduct(ctx context.Context, r *pb.GetProductRequest) (*
 }
 
 func (s *grpcServer) GetProducts(ctx context.Context, r *pb.GetProductsRequest) (*pb.GetProductsResponse, error) {
-	var res []Product
+	var res []domain.Product
 	var err error
 	if r.Query != "" {
 		res, err = s.service.SearchProducts(ctx, r.Query, r.Skip, r.Take)

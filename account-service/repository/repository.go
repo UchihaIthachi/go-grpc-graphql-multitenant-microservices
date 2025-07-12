@@ -1,17 +1,18 @@
-package account
+package repository
 
 import (
 	"context"
 	"database/sql"
 
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/account-service/domain"
 	_ "github.com/lib/pq"
 )
 
 type Repository interface {
 	Close()
-	PutAccount(ctx context.Context, a Account) error
-	GetAccountByID(ctx context.Context, id string) (*Account, error)
-	ListAccounts(ctx context.Context, skip uint64, take uint64) ([]Account, error)
+	PutAccount(ctx context.Context, a domain.Account) error
+	GetAccountByID(ctx context.Context, id string) (*domain.Account, error)
+	ListAccounts(ctx context.Context, skip uint64, take uint64) ([]domain.Account, error)
 }
 
 type postgresRepository struct {
@@ -38,21 +39,21 @@ func (r *postgresRepository) Ping() error {
 	return r.db.Ping()
 }
 
-func (r *postgresRepository) PutAccount(ctx context.Context, a Account) error {
+func (r *postgresRepository) PutAccount(ctx context.Context, a domain.Account) error {
 	_, err := r.db.ExecContext(ctx, "INSERT INTO accounts(id, name) VALUES($1, $2)", a.ID, a.Name)
 	return err
 }
 
-func (r *postgresRepository) GetAccountByID(ctx context.Context, id string) (*Account, error) {
+func (r *postgresRepository) GetAccountByID(ctx context.Context, id string) (*domain.Account, error) {
 	row := r.db.QueryRowContext(ctx, "SELECT id, name FROM accounts WHERE id = $1", id)
-	a := &Account{}
+	a := &domain.Account{}
 	if err := row.Scan(&a.ID, &a.Name); err != nil {
 		return nil, err
 	}
 	return a, nil
 }
 
-func (r *postgresRepository) ListAccounts(ctx context.Context, skip uint64, take uint64) ([]Account, error) {
+func (r *postgresRepository) ListAccounts(ctx context.Context, skip uint64, take uint64) ([]domain.Account, error) {
 	rows, err := r.db.QueryContext(
 		ctx,
 		"SELECT id, name FROM accounts ORDER BY id DESC OFFSET $1 LIMIT $2",
@@ -64,9 +65,9 @@ func (r *postgresRepository) ListAccounts(ctx context.Context, skip uint64, take
 	}
 	defer rows.Close()
 
-	accounts := []Account{}
+	accounts := []domain.Account{}
 	for rows.Next() {
-		a := &Account{}
+		a := &domain.Account{}
 		if err = rows.Scan(&a.ID, &a.Name); err == nil {
 			accounts = append(accounts, *a)
 		}

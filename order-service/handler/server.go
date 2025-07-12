@@ -1,5 +1,5 @@
 //go:generate protoc ./order.proto --go_out=plugins=grpc:./pb
-package order
+package handler
 
 import (
 	"context"
@@ -8,20 +8,22 @@ import (
 	"log"
 	"net"
 
-	account "github.com/akhilsharma90/go-graphql-microservice/account"
-	catalog "github.com/akhilsharma90/go-graphql-microservice/catalog"
-	"github.com/akhilsharma90/go-graphql-microservice/order/pb"
+	account "github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/account"
+	catalog "github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/catalog"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order-service/domain"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order-service/service"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
 
 type grpcServer struct {
-	service       Service
+	service       service.Service
 	accountClient *account.Client
 	catalogClient *catalog.Client
 }
 
-func ListenGRPC(s Service, accountURL, catalogURL string, port int) error {
+func ListenGRPC(s service.Service, accountURL, catalogURL string, port int) error {
 	accountClient, err := account.NewClient(accountURL)
 	if err != nil {
 		return err
@@ -74,9 +76,9 @@ func (s *grpcServer) PostOrder(
 	}
 
 	// Construct products
-	products := []OrderedProduct{}
+	products := []domain.OrderedProduct{}
 	for _, p := range orderedProducts {
-		product := OrderedProduct{
+		product := domain.OrderedProduct{
 			ID:          p.ID,
 			Quantity:    0,
 			Price:       p.Price,

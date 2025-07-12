@@ -1,21 +1,22 @@
 //go:generate protoc ./account.proto --go_out=plugins=grpc:./pb
-package account
+package handler
 
 import (
 	"context"
 	"fmt"
 	"net"
 
-	"github.com/akhilsharma90/go-graphql-microservice/account/pb"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/account-service/service"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/account/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
 
 type grpcServer struct {
-	service Service
+	service service.Service
 }
 
-func ListenGRPC(s Service, port int) error {
+func ListenGRPC(s service.Service, port int) error {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return err

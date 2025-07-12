@@ -3,7 +3,8 @@ package catalog
 import (
 	"context"
 
-	"github.com/akhilsharma90/go-graphql-microservice/catalog/pb"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/catalog-service/domain"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/catalog/pb"
 	"google.golang.org/grpc"
 )
 
@@ -25,7 +26,7 @@ func (c *Client) Close() {
 	c.conn.Close()
 }
 
-func (c *Client) PostProduct(ctx context.Context, name, description string, price float64) (*Product, error) {
+func (c *Client) PostProduct(ctx context.Context, name, description string, price float64) (*domain.Product, error) {
 	r, err := c.service.PostProduct(
 		ctx,
 		&pb.PostProductRequest{
@@ -37,7 +38,7 @@ func (c *Client) PostProduct(ctx context.Context, name, description string, pric
 	if err != nil {
 		return nil, err
 	}
-	return &Product{
+	return &domain.Product{
 		ID:          r.Product.Id,
 		Name:        r.Product.Name,
 		Description: r.Product.Description,
@@ -45,7 +46,7 @@ func (c *Client) PostProduct(ctx context.Context, name, description string, pric
 	}, nil
 }
 
-func (c *Client) GetProduct(ctx context.Context, id string) (*Product, error) {
+func (c *Client) GetProduct(ctx context.Context, id string) (*domain.Product, error) {
 	r, err := c.service.GetProduct(
 		ctx,
 		&pb.GetProductRequest{
@@ -56,7 +57,7 @@ func (c *Client) GetProduct(ctx context.Context, id string) (*Product, error) {
 		return nil, err
 	}
 
-	return &Product{
+	return &domain.Product{
 		ID:          r.Product.Id,
 		Name:        r.Product.Name,
 		Description: r.Product.Description,
@@ -64,7 +65,7 @@ func (c *Client) GetProduct(ctx context.Context, id string) (*Product, error) {
 	}, nil
 }
 
-func (c *Client) GetProducts(ctx context.Context, skip uint64, take uint64, ids []string, query string) ([]Product, error) {
+func (c *Client) GetProducts(ctx context.Context, skip uint64, take uint64, ids []string, query string) ([]domain.Product, error) {
 	r, err := c.service.GetProducts(
 		ctx,
 		&pb.GetProductsRequest{
@@ -77,9 +78,9 @@ func (c *Client) GetProducts(ctx context.Context, skip uint64, take uint64, ids 
 	if err != nil {
 		return nil, err
 	}
-	products := []Product{}
+	products := []domain.Product{}
 	for _, p := range r.Products {
-		products = append(products, Product{
+		products = append(products, domain.Product{
 			ID:          p.Id,
 			Name:        p.Name,
 			Description: p.Description,

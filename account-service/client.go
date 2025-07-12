@@ -3,6 +3,7 @@ package account
 import (
 	"context"
 
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/account-service/domain"
 	"github.com/akhilsharma90/go-graphql-microservice/account/pb"
 	"google.golang.org/grpc"
 )
@@ -25,7 +26,7 @@ func (c *Client) Close() {
 	c.conn.Close()
 }
 
-func (c *Client) PostAccount(ctx context.Context, name string) (*Account, error) {
+func (c *Client) PostAccount(ctx context.Context, name string) (*domain.Account, error) {
 	r, err := c.service.PostAccount(
 		ctx,
 		&pb.PostAccountRequest{Name: name},
@@ -33,13 +34,13 @@ func (c *Client) PostAccount(ctx context.Context, name string) (*Account, error)
 	if err != nil {
 		return nil, err
 	}
-	return &Account{
+	return &domain.Account{
 		ID:   r.Account.Id,
 		Name: r.Account.Name,
 	}, nil
 }
 
-func (c *Client) GetAccount(ctx context.Context, id string) (*Account, error) {
+func (c *Client) GetAccount(ctx context.Context, id string) (*domain.Account, error) {
 	r, err := c.service.GetAccount(
 		ctx,
 		&pb.GetAccountRequest{Id: id},
@@ -47,13 +48,13 @@ func (c *Client) GetAccount(ctx context.Context, id string) (*Account, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Account{
+	return &domain.Account{
 		ID:   r.Account.Id,
 		Name: r.Account.Name,
 	}, nil
 }
 
-func (c *Client) GetAccounts(ctx context.Context, skip uint64, take uint64) ([]Account, error) {
+func (c *Client) GetAccounts(ctx context.Context, skip uint64, take uint64) ([]domain.Account, error) {
 	r, err := c.service.GetAccounts(
 		ctx,
 		&pb.GetAccountsRequest{
@@ -64,9 +65,9 @@ func (c *Client) GetAccounts(ctx context.Context, skip uint64, take uint64) ([]A
 	if err != nil {
 		return nil, err
 	}
-	accounts := []Account{}
+	accounts := []domain.Account{}
 	for _, a := range r.Accounts {
-		accounts = append(accounts, Account{
+		accounts = append(accounts, domain.Account{
 			ID:   a.Id,
 			Name: a.Name,
 		})
