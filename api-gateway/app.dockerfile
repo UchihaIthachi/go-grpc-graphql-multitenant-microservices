@@ -3,10 +3,10 @@ RUN apk --no-cache add gcc g++ make ca-certificates
 WORKDIR /go/src/github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices
 COPY go.mod go.sum ./
 COPY vendor vendor
-COPY account account
-COPY catalog catalog
-COPY order order
-COPY graphql graphql
+COPY account-service account-service
+COPY catalog-service catalog-service
+COPY order-service order-service
+COPY api-gateway api-gateway
 RUN GO111MODULE=on go build -mod vendor -o /go/bin/app ./graphql
 
 FROM alpine:3.11

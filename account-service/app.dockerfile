@@ -3,7 +3,7 @@ RUN apk --no-cache add gcc g++ make ca-certificates
 WORKDIR /go/src/github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices
 COPY go.mod go.sum ./
 COPY vendor vendor
-COPY account account
+COPY account account-service
 RUN GO111MODULE=on go build -mod vendor -o /go/bin/app ./account/cmd/account
 
 FROM alpine:3.11
