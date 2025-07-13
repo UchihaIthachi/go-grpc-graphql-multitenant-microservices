@@ -2,7 +2,23 @@ schema: schema.graphql
 
 models:
   Account:
-    model: github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/graphql.Account
+    model: github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/api-gateway.Account
     fields:
       orders:
         resolver: true
+  Product:
+    model: github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/api-gateway.Product
+  Order:
+    model: github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/api-gateway.Order
+  OrderedProduct:
+    model: github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/api-gateway.OrderedProduct
+  PaginationInput:
+    model: github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/api-gateway.PaginationInput
+  AccountInput:
+    model: github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/api-gateway.AccountInput
+  ProductInput:
+    model: github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/api-gateway.ProductInput
+  OrderProductInput:
+    model: github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/api-gateway.OrderProductInput
+  OrderInput:
+    model: github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/api-gateway.OrderInput

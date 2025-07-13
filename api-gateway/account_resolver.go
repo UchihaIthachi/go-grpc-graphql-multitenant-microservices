@@ -10,7 +10,7 @@ type accountResolver struct {
 	server *Server
 }
 
-func (r *accountResolver) Orders(ctx context.Context, obj *Account) ([]*Order, error) {
+func (r *accountResolver) Orders(ctx context.Context, obj *Account) ([]Order, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
@@ -20,11 +20,11 @@ func (r *accountResolver) Orders(ctx context.Context, obj *Account) ([]*Order, e
 		return nil, err
 	}
 
-	var orders []*Order
+	var orders []Order
 	for _, o := range orderList {
-		var products []*OrderedProduct
+		var products []OrderedProduct
 		for _, p := range o.Products {
-			products = append(products, &OrderedProduct{
+			products = append(products, OrderedProduct{
 				ID:          p.ID,
 				Name:        p.Name,
 				Description: p.Description,
@@ -32,7 +32,7 @@ func (r *accountResolver) Orders(ctx context.Context, obj *Account) ([]*Order, e
 				Quantity:    int(p.Quantity),
 			})
 		}
-		orders = append(orders, &Order{
+		orders = append(orders, Order{
 			ID:         o.ID,
 			CreatedAt:  o.CreatedAt,
 			TotalPrice: o.TotalPrice,
