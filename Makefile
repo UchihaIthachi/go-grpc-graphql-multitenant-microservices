@@ -43,8 +43,8 @@ proto: proto-account proto-catalog proto-order
 build: build-account build-catalog build-order build-gateway
 
 graphql:
-	@echo "📦 Generating GraphQL code..."
-	go run github.com/99designs/gqlgen
+	@echo "🧬 Generating GraphQL types..."
+	cd api-gateway && go run github.com/99designs/gqlgen generate
 
 clean: clean-account clean-catalog clean-order clean-gateway
 	@echo "🧹 Cleaning generated gRPC .pb.go files..."
