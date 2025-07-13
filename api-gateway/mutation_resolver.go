@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order-service"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order-service/domain"
 )
 
 var (
@@ -55,12 +55,12 @@ func (r *mutationResolver) CreateOrder(ctx context.Context, in OrderInput) (*Ord
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	var products []order.OrderedProduct
+	var products []domain.OrderedProduct
 	for _, p := range in.Products {
 		if p.Quantity <= 0 {
 			return nil, ErrInvalidParameter
 		}
-		products = append(products, order.OrderedProduct{
+		products = append(products, domain.OrderedProduct{
 			ID:       p.ID,
 			Quantity: uint32(p.Quantity),
 		})

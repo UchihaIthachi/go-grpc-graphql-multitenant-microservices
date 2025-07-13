@@ -1,109 +1,145 @@
-# Tools
-PROTOC = protoc
-GO_BUILD = go build -mod=mod
-GO_TIDY = go mod tidy
+# ====================================================================================
+# VARIABLES
+# ====================================================================================
 
-# Source directories
-ACCOUNT_CMD = ./account-service/cmd/account
-CATALOG_CMD = ./catalog-service/cmd/catalog
-ORDER_CMD = ./order-service/cmd/order
-GATEWAY_CMD = ./api-gateway
+# Tools
+PROTOC := protoc
+GO_BUILD := go build -mod=readonly
+GO_TIDY := go mod tidy
+GQLGEN := go run -v github.com/99designs/gqlgen generate
+
+# Directories
+ACCOUNT_DIR := ./account-service
+CATALOG_DIR := ./catalog-service
+ORDER_DIR := ./order-service
+GATEWAY_DIR := ./api-gateway
+
+# Source Commands
+ACCOUNT_CMD := $(ACCOUNT_DIR)/cmd/account
+CATALOG_CMD := $(CATALOG_DIR)/cmd/catalog
+ORDER_CMD := $(ORDER_DIR)/cmd/order
+GATEWAY_CMD := $(GATEWAY_DIR)
 
 # Binaries
-ACCOUNT_BIN = ./account-service/app
-CATALOG_BIN = ./catalog-service/app
-ORDER_BIN = ./order-service/app
-GATEWAY_BIN = ./api-gateway/app
+ACCOUNT_BIN := $(ACCOUNT_DIR)/app
+CATALOG_BIN := $(CATALOG_DIR)/app
+ORDER_BIN := $(ORDER_DIR)/app
+GATEWAY_BIN := $(GATEWAY_DIR)/app
 
 # Protobuf files
-ACCOUNT_PROTO = ./account-service/proto/account.proto
-CATALOG_PROTO = ./catalog-service/proto/catalog.proto
-ORDER_PROTO = ./order-service/proto/order.proto
+ACCOUNT_PROTO := $(ACCOUNT_DIR)/proto/account.proto
+CATALOG_PROTO := $(CATALOG_DIR)/proto/catalog.proto
+ORDER_PROTO := $(ORDER_DIR)/proto/order.proto
 
-# Output for gRPC code
-ACCOUNT_OUT = ./account-service/pb
-CATALOG_OUT = ./catalog-service/pb
-ORDER_OUT = ./order-service/pb
+# Protobuf outputs
+ACCOUNT_PB := $(ACCOUNT_DIR)/pb
+CATALOG_PB := $(CATALOG_DIR)/pb
+ORDER_PB := $(ORDER_DIR)/pb
 
-.PHONY: all tidy proto build clean \
-        proto-account proto-catalog proto-order \
-        build-account build-catalog build-order build-gateway \
-        clean-account clean-catalog clean-order clean-gateway
+# GraphQL files
+GQLGEN_CONFIG := $(GATEWAY_DIR)/gqlgen.yml
 
-# === Main Targets ===
+# ====================================================================================
+# MAIN TARGETS
+# ====================================================================================
 
-all: tidy proto build
+.PHONY: all
+all: proto build
+	@echo "✅ All targets built successfully!"
 
+.PHONY: tidy
 tidy:
 	@echo "🧼 Running go mod tidy..."
 	$(GO_TIDY)
 
-proto: proto-account proto-catalog proto-order
-
+.PHONY: build
 build: build-account build-catalog build-order build-gateway
+	@echo "🔨 All services built."
 
+.PHONY: proto
+proto: proto-account proto-catalog proto-order
+	@echo "📦 All protobuf files generated."
+
+
+.PHONY: graphql
 graphql:
 	@echo "📦 Generating GraphQL code..."
-	go run github.com/99designs/gqlgen
+	$(GQLGEN) --config $(GQLGEN_CONFIG)
 
+
+.PHONY: clean
 clean: clean-account clean-catalog clean-order clean-gateway
-	@echo "🧹 Cleaning generated gRPC .pb.go files..."
-	rm -f $(ACCOUNT_OUT)/*.pb.go
-	rm -f $(CATALOG_OUT)/*.pb.go
-	rm -f $(ORDER_OUT)/*.pb.go
+	@echo "🧹 Cleaning all generated files..."
+	rm -f $(ACCOUNT_PB)/*.pb.go
+	rm -f $(CATALOG_PB)/*.pb.go
+	rm -f $(ORDER_PB)/*.pb.go
+	@echo "✅ Cleanup complete."
 
-# === gRPC Code Generation ===
+# ====================================================================================
+# SERVICE-SPECIFIC TARGETS
+# ====================================================================================
 
-proto-account:
-	@echo "📦 Generating gRPC code for Account Service..."
-	$(PROTOC) --proto_path=./account-service/proto \
-		--go_out=$(ACCOUNT_OUT) --go-grpc_out=$(ACCOUNT_OUT) \
-		$(ACCOUNT_PROTO)
-
-proto-catalog:
-	@echo "📦 Generating gRPC code for Catalog Service..."
-	$(PROTOC) --proto_path=./catalog-service/proto \
-		--go_out=$(CATALOG_OUT) --go-grpc_out=$(CATALOG_OUT) \
-		$(CATALOG_PROTO)
-
-proto-order:
-	@echo "📦 Generating gRPC code for Order Service..."
-	$(PROTOC) --proto_path=./order-service/proto \
-		--go_out=$(ORDER_OUT) --go-grpc_out=$(ORDER_OUT) \
-		$(ORDER_PROTO)
-
-# === Go Builds ===
-
+# --- Account Service ---
+.PHONY: build-account
 build-account:
 	@echo "🔨 Building Account Service..."
 	$(GO_BUILD) -o $(ACCOUNT_BIN) $(ACCOUNT_CMD)
 
-build-catalog:
-	@echo "🔨 Building Catalog Service..."
-	$(GO_BUILD) -o $(CATALOG_BIN) $(CATALOG_CMD)
+.PHONY: proto-account
+proto-account:
+	@echo "📦 Generating gRPC code for Account Service..."
+	$(PROTOC) --proto_path=$(ACCOUNT_DIR)/proto \
+		--go_out=$(ACCOUNT_PB) --go-grpc_out=$(ACCOUNT_PB) \
+		$(ACCOUNT_PROTO)
 
-build-order:
-	@echo "🔨 Building Order Service..."
-	$(GO_BUILD) -o $(ORDER_BIN) $(ORDER_CMD)
-
-build-gateway:
-	@echo "🔨 Building API Gateway..."
-	$(GO_BUILD) -o $(GATEWAY_BIN) $(GATEWAY_CMD)
-
-# === Clean Binaries ===
-
+.PHONY: clean-account
 clean-account:
 	@echo "❌ Cleaning Account binary..."
 	rm -f $(ACCOUNT_BIN)
 
+# --- Catalog Service ---
+.PHONY: build-catalog
+build-catalog:
+	@echo "🔨 Building Catalog Service..."
+	$(GO_BUILD) -o $(CATALOG_BIN) $(CATALOG_CMD)
+
+.PHONY: proto-catalog
+proto-catalog:
+	@echo "📦 Generating gRPC code for Catalog Service..."
+	$(PROTOC) --proto_path=$(CATALOG_DIR)/proto \
+		--go_out=$(CATALOG_PB) --go-grpc_out=$(CATALOG_PB) \
+		$(CATALOG_PROTO)
+
+.PHONY: clean-catalog
 clean-catalog:
 	@echo "❌ Cleaning Catalog binary..."
 	rm -f $(CATALOG_BIN)
 
+# --- Order Service ---
+.PHONY: build-order
+build-order:
+	@echo "🔨 Building Order Service..."
+	$(GO_BUILD) -o $(ORDER_BIN) $(ORDER_CMD)
+
+.PHONY: proto-order
+proto-order:
+	@echo "📦 Generating gRPC code for Order Service..."
+	$(PROTOC) --proto_path=$(ORDER_DIR)/proto \
+		--go_out=$(ORDER_PB) --go-grpc_out=$(ORDER_PB) \
+		$(ORDER_PROTO)
+
+.PHONY: clean-order
 clean-order:
 	@echo "❌ Cleaning Order binary..."
 	rm -f $(ORDER_BIN)
 
+# --- API Gateway ---
+.PHONY: build-gateway
+build-gateway:
+	@echo "🔨 Building API Gateway..."
+	$(GO_BUILD) -o $(GATEWAY_BIN) $(GATEWAY_CMD)
+
+.PHONY: clean-gateway
 clean-gateway:
 	@echo "❌ Cleaning Gateway binary..."
 	rm -f $(GATEWAY_BIN)

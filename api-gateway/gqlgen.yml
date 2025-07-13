@@ -1,8 +1,17 @@
-schema: schema.graphql
+schema:
+  - schema.graphql
+
+exec:
+  filename: generated.go
+model:
+  filename: models_gen.go
+resolver:
+  layout: follow-schema
+  dir: resolver
+  package: resolver
 
 models:
   Account:
-    model: github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/graphql.Account
     fields:
       orders:
         resolver: true
