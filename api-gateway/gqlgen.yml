@@ -1,8 +1,18 @@
 schema: schema.graphql
 
+exec:
+  filename: graph.go
+resolver:
+  filename: resolver.go
+  type: Resolver
+
 models:
   Account:
-    model: github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/graphql.Account
+    model: github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/api-gateway.Account
     fields:
       orders:
         resolver: true
+  Product:
+    model: github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/api-gateway.Product
+  Order:
+    model: github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/api-gateway.Order

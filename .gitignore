@@ -1,1 +1,5 @@
-.idea/
+# Binaries
+/account-service/app
+/catalog-service/app
+/order-service/app
+/api-gateway/app
