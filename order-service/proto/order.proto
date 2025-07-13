@@ -1,5 +1,7 @@
 syntax = "proto3";
-package pb;
+package order;
+
+option go_package = "github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order-service/pb";
 
 message Order {
     message OrderProduct {

@@ -2,9 +2,9 @@ package main
 
 import (
 	"github.com/99designs/gqlgen/graphql"
-	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/account"
-	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/catalog"
-	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/account-service"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/catalog-service"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order-service"
 )
 
 type Server struct {
