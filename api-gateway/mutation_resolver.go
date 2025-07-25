@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order-service"
 )
 
 var (

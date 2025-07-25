@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"time"
+
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order-service/domain"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order-service/repository"
 	"github.com/segmentio/ksuid"
 )
 
@@ -11,9 +13,6 @@ type Service interface {
 	PostOrder(ctx context.Context, accountID string, products []domain.OrderedProduct) (*domain.Order, error)
 	GetOrdersForAccount(ctx context.Context, accountID string) ([]domain.Order, error)
 }
-
-import "github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order-service/repository"
-
 type orderService struct {
 	repository repository.Repository
 }
