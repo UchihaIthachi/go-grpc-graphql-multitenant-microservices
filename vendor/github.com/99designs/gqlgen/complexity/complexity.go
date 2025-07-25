@@ -1,8 +1,9 @@
 package complexity
 
 import (
+	"github.com/vektah/gqlparser/v2/ast"
+
 	"github.com/99designs/gqlgen/graphql"
-	"github.com/vektah/gqlparser/ast"
 )
 
 func Calculate(es graphql.ExecutableSchema, op *ast.OperationDefinition, vars map[string]interface{}) int {
@@ -26,6 +27,11 @@ func (cw complexityWalker) selectionSetComplexity(selectionSet ast.SelectionSet)
 		switch s := selection.(type) {
 		case *ast.Field:
 			fieldDefinition := cw.schema.Types[s.Definition.Type.Name()]
+
+			if fieldDefinition.Name == "__Schema" {
+				continue
+			}
+
 			var childComplexity int
 			switch fieldDefinition.Kind {
 			case ast.Object, ast.Interface, ast.Union:

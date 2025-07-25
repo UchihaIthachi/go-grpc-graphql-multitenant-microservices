@@ -1,22 +1,40 @@
-# github.com/99designs/gqlgen v0.10.2
+# github.com/99designs/gqlgen v0.17.44
 github.com/99designs/gqlgen/complexity
 github.com/99designs/gqlgen/graphql
-github.com/99designs/gqlgen/graphql/introspection
+github.com/99designs/gqlgen/graphql/errcode
+github.com/99designs/gqlgen/graphql/executor
+github.com/99designs/gqlgen/graphql/handler
+github.com/99designs/gqlgen/graphql/handler/extension
+github.com/99designs/gqlgen/graphql/handler/lru
+github.com/99designs/gqlgen/graphql/handler/transport
+github.com/99designs/gqlgen/graphql/playground
 github.com/99designs/gqlgen/handler
-# github.com/agnivade/levenshtein v1.0.1
+# github.com/agnivade/levenshtein v1.1.1
 github.com/agnivade/levenshtein
-# github.com/golang/protobuf v1.3.2
+# github.com/gocql/gocql v1.7.0
+github.com/gocql/gocql
+github.com/gocql/gocql/internal/lru
+github.com/gocql/gocql/internal/murmur
+github.com/gocql/gocql/internal/streams
+# github.com/golang/protobuf v1.5.0
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/protoc-gen-go/descriptor
 github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
-# github.com/gorilla/websocket v1.2.0
+# github.com/golang/snappy v0.0.3
+github.com/golang/snappy
+# github.com/google/uuid v1.6.0
+github.com/google/uuid
+# github.com/gorilla/websocket v1.5.0
 github.com/gorilla/websocket
-# github.com/hashicorp/golang-lru v0.5.0
-github.com/hashicorp/golang-lru
-github.com/hashicorp/golang-lru/simplelru
+# github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed
+github.com/hailocab/go-hostpool
+# github.com/hashicorp/golang-lru/v2 v2.0.7
+github.com/hashicorp/golang-lru/v2
+github.com/hashicorp/golang-lru/v2/internal
+github.com/hashicorp/golang-lru/v2/simplelru
 # github.com/kelseyhightower/envconfig v1.4.0
 github.com/kelseyhightower/envconfig
 # github.com/lib/pq v1.3.0
@@ -28,30 +46,32 @@ github.com/mailru/easyjson
 github.com/mailru/easyjson/buffer
 github.com/mailru/easyjson/jlexer
 github.com/mailru/easyjson/jwriter
+# github.com/mitchellh/mapstructure v1.5.0
+github.com/mitchellh/mapstructure
 # github.com/pkg/errors v0.8.1
 github.com/pkg/errors
 # github.com/segmentio/ksuid v1.0.2
 github.com/segmentio/ksuid
+# github.com/sosodev/duration v1.2.0
+github.com/sosodev/duration
 # github.com/tinrab/retry v1.0.0
 github.com/tinrab/retry
-# github.com/vektah/gqlparser v1.2.1
-github.com/vektah/gqlparser
-github.com/vektah/gqlparser/ast
-github.com/vektah/gqlparser/gqlerror
-github.com/vektah/gqlparser/lexer
-github.com/vektah/gqlparser/parser
-github.com/vektah/gqlparser/validator
-github.com/vektah/gqlparser/validator/rules
-# golang.org/x/net v0.0.0-20200114155413-6afb5195e5aa
+# github.com/vektah/gqlparser/v2 v2.5.11
+github.com/vektah/gqlparser/v2/ast
+github.com/vektah/gqlparser/v2/gqlerror
+github.com/vektah/gqlparser/v2/lexer
+github.com/vektah/gqlparser/v2/parser
+github.com/vektah/gqlparser/v2/validator
+# golang.org/x/net v0.20.0
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/sys v0.0.0-20200117145432-59e60aa80a0c
+# golang.org/x/sys v0.16.0
 golang.org/x/sys/unix
-# golang.org/x/text v0.3.2
+# golang.org/x/text v0.14.0
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
@@ -97,6 +117,39 @@ google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
+# google.golang.org/protobuf v1.32.0
+google.golang.org/protobuf/encoding/prototext
+google.golang.org/protobuf/encoding/protowire
+google.golang.org/protobuf/internal/descfmt
+google.golang.org/protobuf/internal/descopts
+google.golang.org/protobuf/internal/detrand
+google.golang.org/protobuf/internal/encoding/defval
+google.golang.org/protobuf/internal/encoding/messageset
+google.golang.org/protobuf/internal/encoding/tag
+google.golang.org/protobuf/internal/encoding/text
+google.golang.org/protobuf/internal/errors
+google.golang.org/protobuf/internal/filedesc
+google.golang.org/protobuf/internal/filetype
+google.golang.org/protobuf/internal/flags
+google.golang.org/protobuf/internal/genid
+google.golang.org/protobuf/internal/impl
+google.golang.org/protobuf/internal/order
+google.golang.org/protobuf/internal/pragma
+google.golang.org/protobuf/internal/set
+google.golang.org/protobuf/internal/strs
+google.golang.org/protobuf/internal/version
+google.golang.org/protobuf/proto
+google.golang.org/protobuf/reflect/protodesc
+google.golang.org/protobuf/reflect/protoreflect
+google.golang.org/protobuf/reflect/protoregistry
+google.golang.org/protobuf/runtime/protoiface
+google.golang.org/protobuf/runtime/protoimpl
+google.golang.org/protobuf/types/descriptorpb
+google.golang.org/protobuf/types/known/anypb
+google.golang.org/protobuf/types/known/durationpb
+google.golang.org/protobuf/types/known/timestamppb
+# gopkg.in/inf.v0 v0.9.1
+gopkg.in/inf.v0
 # gopkg.in/olivere/elastic.v5 v5.0.84
 gopkg.in/olivere/elastic.v5
 gopkg.in/olivere/elastic.v5/config

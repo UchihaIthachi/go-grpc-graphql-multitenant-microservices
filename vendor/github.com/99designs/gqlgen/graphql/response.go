@@ -5,7 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/vektah/gqlparser/gqlerror"
+	"github.com/vektah/gqlparser/v2/ast"
+	"github.com/vektah/gqlparser/v2/gqlerror"
 )
 
 // Errors are intentionally serialized first based on the advice in
@@ -14,6 +15,9 @@ import (
 type Response struct {
 	Errors     gqlerror.List          `json:"errors,omitempty"`
 	Data       json.RawMessage        `json:"data"`
+	Label      string                 `json:"label,omitempty"`
+	Path       ast.Path               `json:"path,omitempty"`
+	HasNext    *bool                  `json:"hasNext,omitempty"`
 	Extensions map[string]interface{} `json:"extensions,omitempty"`
 }
 

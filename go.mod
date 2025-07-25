@@ -10,6 +10,7 @@ require (
 	github.com/lib/pq v1.3.0
 	github.com/segmentio/ksuid v1.0.2
 	github.com/tinrab/retry v1.0.0
+	github.com/vektah/gqlparser/v2 v2.5.11
 	google.golang.org/genproto v0.0.0-20200117163144-32f20d992d24 // indirect
 	google.golang.org/grpc v1.26.0
 	google.golang.org/protobuf v1.32.0
