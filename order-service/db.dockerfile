@@ -1,5 +1,6 @@
-FROM postgres:10.3
+FROM cassandra:3.11
 
-COPY up.sql /docker-entrypoint-initdb.d/1.sql
+ADD up.cql /
+RUN until cqlsh -f /up.cql; do echo "cqlsh: Cassandra is not ready yet - sleeping"; sleep 1; done &
 
-CMD ["postgres"]
+CMD ["cassandra", "-f"]

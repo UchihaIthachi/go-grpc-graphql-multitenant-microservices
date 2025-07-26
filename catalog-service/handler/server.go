@@ -15,8 +15,10 @@ import (
 )
 
 type grpcServer struct {
+	pb.UnimplementedCatalogServiceServer
 	service service.Service
 }
+
 
 func ListenGRPC(s service.Service, port int) error {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
@@ -24,7 +26,7 @@ func ListenGRPC(s service.Service, port int) error {
 		return err
 	}
 	serv := grpc.NewServer()
-	pb.RegisterCatalogServiceServer(serv, &grpcServer{s})
+	pb.RegisterCatalogServiceServer(serv, &grpcServer{service: s})
 	reflection.Register(serv)
 	return serv.Serve(lis)
 }

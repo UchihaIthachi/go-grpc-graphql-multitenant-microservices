@@ -1,5 +1,9 @@
 syntax = "proto3";
+
 package pb;
+
+option go_package = "github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/catalog-service/pb;pb";
+
 
 message Product {
     string id = 1;

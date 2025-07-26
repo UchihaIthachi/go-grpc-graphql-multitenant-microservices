@@ -57,19 +57,22 @@ clean: clean-account clean-catalog clean-order clean-gateway
 proto-account:
 	@echo "📦 Generating gRPC code for Account Service..."
 	$(PROTOC) --proto_path=./account-service/proto \
-		--go_out=$(ACCOUNT_OUT) --go-grpc_out=$(ACCOUNT_OUT) \
+		--go_out=paths=source_relative:./account-service/pb \
+		--go-grpc_out=paths=source_relative:./account-service/pb \
 		$(ACCOUNT_PROTO)
 
 proto-catalog:
 	@echo "📦 Generating gRPC code for Catalog Service..."
 	$(PROTOC) --proto_path=./catalog-service/proto \
-		--go_out=$(CATALOG_OUT) --go-grpc_out=$(CATALOG_OUT) \
+		--go_out=paths=source_relative:$(CATALOG_OUT) \
+		--go-grpc_out=paths=source_relative:$(CATALOG_OUT) \
 		$(CATALOG_PROTO)
 
 proto-order:
 	@echo "📦 Generating gRPC code for Order Service..."
 	$(PROTOC) --proto_path=./order-service/proto \
-		--go_out=$(ORDER_OUT) --go-grpc_out=$(ORDER_OUT) \
+		--go_out=paths=source_relative:$(ORDER_OUT) \
+		--go-grpc_out=paths=source_relative:$(ORDER_OUT) \
 		$(ORDER_PROTO)
 
 # === Go Builds ===
