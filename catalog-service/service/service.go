@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/catalog-service/domain"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/catalog-service/repository"
 	"github.com/segmentio/ksuid"
 )
 
@@ -13,9 +15,6 @@ type Service interface {
 	GetProductsByIDs(ctx context.Context, ids []string) ([]domain.Product, error)
 	SearchProducts(ctx context.Context, query string, skip uint64, take uint64) ([]domain.Product, error)
 }
-
-import "github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/catalog-service/repository"
-
 type catalogService struct {
 	repository repository.Repository
 }

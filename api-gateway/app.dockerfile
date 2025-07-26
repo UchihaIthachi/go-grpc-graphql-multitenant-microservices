@@ -7,7 +7,7 @@ COPY account-service account-service
 COPY catalog-service catalog-service
 COPY order-service order-service
 COPY api-gateway api-gateway
-RUN GO111MODULE=on go build -mod vendor -o /go/bin/app ./graphql
+RUN GO111MODULE=on go build -mod vendor -o /go/bin/app ./api-gateway
 
 FROM alpine:3.11
 WORKDIR /usr/bin
