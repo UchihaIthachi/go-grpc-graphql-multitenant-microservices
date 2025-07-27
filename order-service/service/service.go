@@ -13,10 +13,12 @@ type Service interface {
 	PostOrder(ctx context.Context, accountID string, products []domain.OrderedProduct) (*domain.Order, error)
 	GetOrdersForAccount(ctx context.Context, accountID string) ([]domain.Order, error)
 }
+
 type orderService struct {
-	repository repository.Repository
+	repository repository.Repository // ✅ use the interface
 }
 
+// NewService accepts any Repository implementation (e.g., CassandraRepo)
 func NewService(r repository.Repository) Service {
 	return &orderService{r}
 }
@@ -37,8 +39,7 @@ func (s orderService) PostOrder(
 	for _, p := range products {
 		o.TotalPrice += p.Price * float64(p.Quantity)
 	}
-	err := s.repository.PutOrder(ctx, *o)
-	if err != nil {
+	if err := s.repository.PutOrder(ctx, *o); err != nil {
 		return nil, err
 	}
 	return o, nil

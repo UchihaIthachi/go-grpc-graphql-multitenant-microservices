@@ -13,6 +13,7 @@ import (
 )
 
 type grpcServer struct {
+	pb.UnimplementedAccountServiceServer
 	service service.Service
 }
 
@@ -22,7 +23,7 @@ func ListenGRPC(s service.Service, port int) error {
 		return err
 	}
 	serv := grpc.NewServer()
-	pb.RegisterAccountServiceServer(serv, &grpcServer{s})
+	pb.RegisterAccountServiceServer(serv, &grpcServer{service: s})
 	reflection.Register(serv)
 	return serv.Serve(lis)
 }

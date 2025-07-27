@@ -28,7 +28,7 @@ services:
     depends_on:
       - order_db
     environment:
-      DATABASE_URL: postgres://user:user@order_db:5432/postgres?sslmode=disable
+      DATABASE_URL: cassandra://order_db:9042
       ACCOUNT_SERVICE_URL: http://account-service:8080
       CATALOG_SERVICE_URL: http://catalog-service:8080
     restart: on-failure
@@ -70,8 +70,6 @@ services:
     build:
       context: ./order-service
       dockerfile: ./db.dockerfile
-    environment:
-      POSTGRES_DB: postgres
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: user
+    ports:
+      - "9042:9042"
     restart: unless-stopped

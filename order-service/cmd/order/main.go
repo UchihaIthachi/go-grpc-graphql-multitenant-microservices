@@ -26,7 +26,7 @@ func main() {
 
 	var r repository.Repository
 	retry.ForeverSleep(2*time.Second, func(_ int) (err error) {
-		r, err = repository.NewPostgresRepository(cfg.DatabaseURL)
+		r, err = repository.NewCassandraRepository(cfg.DatabaseURL)
 		if err != nil {
 			log.Println(err)
 		}
