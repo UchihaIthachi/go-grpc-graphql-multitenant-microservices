@@ -13,8 +13,9 @@ type accountResolver struct {
 func (r *accountResolver) Orders(ctx context.Context, obj *Account) ([]*Order, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
+	tenantID := ctx.Value("tenant_id").(string)
 
-	orderList, err := r.server.orderClient.GetOrdersForAccount(ctx, obj.ID)
+	orderList, err := r.server.orderClient.GetOrdersForAccount(ctx, tenantID, obj.ID)
 	if err != nil {
 		log.Println(err)
 		return nil, err
