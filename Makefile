@@ -1,42 +1,50 @@
-# Tools
-PROTOC = protoc
-GO_BUILD = go build -mod=mod
-GO_TIDY = go mod tidy
+# === Tools ===
+PROTOC       = protoc
+GO           = go
+GO_BUILD     = $(GO) build -mod=mod
+GO_TIDY      = $(GO) mod tidy
+GO_VENDOR    = $(GO) mod vendor
+GQLGEN       = go run github.com/99designs/gqlgen generate
 
-# Source directories
-ACCOUNT_CMD = ./account-service/cmd/account
-CATALOG_CMD = ./catalog-service/cmd/catalog
-ORDER_CMD = ./order-service/cmd/order
-GATEWAY_CMD = ./api-gateway
+# === Source Directories ===
+ACCOUNT_CMD  = ./account-service/cmd/account
+CATALOG_CMD  = ./catalog-service/cmd/catalog
+ORDER_CMD    = ./order-service/cmd/order
+GATEWAY_CMD  = ./api-gateway
 
-# Binaries
-ACCOUNT_BIN = ./account-service/app
-CATALOG_BIN = ./catalog-service/app
-ORDER_BIN = ./order-service/app
-GATEWAY_BIN = ./api-gateway/app
+# === Binary Outputs ===
+ACCOUNT_BIN  = ./account-service/app
+CATALOG_BIN  = ./catalog-service/app
+ORDER_BIN    = ./order-service/app
+GATEWAY_BIN  = ./api-gateway/app
 
-# Protobuf files
+# === Protobuf Definitions ===
 ACCOUNT_PROTO = ./account-service/proto/account.proto
 CATALOG_PROTO = ./catalog-service/proto/catalog.proto
-ORDER_PROTO = ./order-service/proto/order.proto
+ORDER_PROTO   = ./order-service/proto/order.proto
 
-# Output for gRPC code
-ACCOUNT_OUT = ./account-service/pb
-CATALOG_OUT = ./catalog-service/pb
-ORDER_OUT = ./order-service/pb
+# === gRPC Output Directories ===
+ACCOUNT_OUT  = ./account-service/pb
+CATALOG_OUT  = ./catalog-service/pb
+ORDER_OUT    = ./order-service/pb
 
-.PHONY: all tidy proto build clean \
+# === Phony Targets ===
+.PHONY: all tidy vendor proto build graphql clean \
         proto-account proto-catalog proto-order \
         build-account build-catalog build-order build-gateway \
         clean-account clean-catalog clean-order clean-gateway
 
-# === Main Targets ===
+# === High-Level Targets ===
 
-all: tidy proto build
+all: tidy vendor proto build
 
 tidy:
 	@echo "🧼 Running go mod tidy..."
 	$(GO_TIDY)
+
+vendor:
+	@echo "📦 Vendoring dependencies..."
+	$(GO_VENDOR)
 
 proto: proto-account proto-catalog proto-order
 
@@ -44,7 +52,7 @@ build: build-account build-catalog build-order build-gateway
 
 graphql:
 	@echo "🧬 Generating GraphQL types..."
-	cd api-gateway && go run github.com/99designs/gqlgen generate
+	cd api-gateway && $(GQLGEN)
 
 clean: clean-account clean-catalog clean-order clean-gateway
 	@echo "🧹 Cleaning generated gRPC .pb.go files..."
@@ -57,25 +65,25 @@ clean: clean-account clean-catalog clean-order clean-gateway
 proto-account:
 	@echo "📦 Generating gRPC code for Account Service..."
 	$(PROTOC) --proto_path=./account-service/proto \
-		--go_out=paths=source_relative:./account-service/pb \
-		--go-grpc_out=paths=source_relative:./account-service/pb \
-		$(ACCOUNT_PROTO)
+	          --go_out=paths=source_relative:$(ACCOUNT_OUT) \
+	          --go-grpc_out=paths=source_relative:$(ACCOUNT_OUT) \
+	          $(ACCOUNT_PROTO)
 
 proto-catalog:
 	@echo "📦 Generating gRPC code for Catalog Service..."
 	$(PROTOC) --proto_path=./catalog-service/proto \
-		--go_out=paths=source_relative:$(CATALOG_OUT) \
-		--go-grpc_out=paths=source_relative:$(CATALOG_OUT) \
-		$(CATALOG_PROTO)
+	          --go_out=paths=source_relative:$(CATALOG_OUT) \
+	          --go-grpc_out=paths=source_relative:$(CATALOG_OUT) \
+	          $(CATALOG_PROTO)
 
 proto-order:
 	@echo "📦 Generating gRPC code for Order Service..."
 	$(PROTOC) --proto_path=./order-service/proto \
-		--go_out=paths=source_relative:$(ORDER_OUT) \
-		--go-grpc_out=paths=source_relative:$(ORDER_OUT) \
-		$(ORDER_PROTO)
+	          --go_out=paths=source_relative:$(ORDER_OUT) \
+	          --go-grpc_out=paths=source_relative:$(ORDER_OUT) \
+	          $(ORDER_PROTO)
 
-# === Go Builds ===
+# === Build Commands ===
 
 build-account:
 	@echo "🔨 Building Account Service..."
@@ -96,17 +104,17 @@ build-gateway:
 # === Clean Binaries ===
 
 clean-account:
-	@echo "❌ Cleaning Account binary..."
+	@echo "❌ Removing Account binary..."
 	rm -f $(ACCOUNT_BIN)
 
 clean-catalog:
-	@echo "❌ Cleaning Catalog binary..."
+	@echo "❌ Removing Catalog binary..."
 	rm -f $(CATALOG_BIN)
 
 clean-order:
-	@echo "❌ Cleaning Order binary..."
+	@echo "❌ Removing Order binary..."
 	rm -f $(ORDER_BIN)
 
 clean-gateway:
-	@echo "❌ Cleaning Gateway binary..."
+	@echo "❌ Removing Gateway binary..."
 	rm -f $(GATEWAY_BIN)

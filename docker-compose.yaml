@@ -70,8 +70,6 @@ services:
     build:
       context: ./order-service
       dockerfile: ./db.dockerfile
-    environment:
-      POSTGRES_DB: postgres
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: user
+    ports:
+      - "9042:9042"
     restart: unless-stopped
