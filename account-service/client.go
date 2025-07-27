@@ -26,40 +26,43 @@ func (c *Client) Close() {
 	c.conn.Close()
 }
 
-func (c *Client) PostAccount(ctx context.Context, name string) (*domain.Account, error) {
+func (c *Client) PostAccount(ctx context.Context, name, tenantID string) (*domain.Account, error) {
 	r, err := c.service.PostAccount(
 		ctx,
-		&pb.PostAccountRequest{Name: name},
+		&pb.PostAccountRequest{Name: name, TenantId: tenantID},
 	)
 	if err != nil {
 		return nil, err
 	}
 	return &domain.Account{
-		ID:   r.Account.Id,
-		Name: r.Account.Name,
+		ID:       r.Account.Id,
+		Name:     r.Account.Name,
+		TenantID: r.Account.TenantId,
 	}, nil
 }
 
-func (c *Client) GetAccount(ctx context.Context, id string) (*domain.Account, error) {
+func (c *Client) GetAccount(ctx context.Context, tenantID, id string) (*domain.Account, error) {
 	r, err := c.service.GetAccount(
 		ctx,
-		&pb.GetAccountRequest{Id: id},
+		&pb.GetAccountRequest{Id: id, TenantId: tenantID},
 	)
 	if err != nil {
 		return nil, err
 	}
 	return &domain.Account{
-		ID:   r.Account.Id,
-		Name: r.Account.Name,
+		ID:       r.Account.Id,
+		Name:     r.Account.Name,
+		TenantID: r.Account.TenantId,
 	}, nil
 }
 
-func (c *Client) GetAccounts(ctx context.Context, skip uint64, take uint64) ([]domain.Account, error) {
+func (c *Client) GetAccounts(ctx context.Context, tenantID string, skip uint64, take uint64) ([]domain.Account, error) {
 	r, err := c.service.GetAccounts(
 		ctx,
 		&pb.GetAccountsRequest{
-			Skip: skip,
-			Take: take,
+			TenantId: tenantID,
+			Skip:     skip,
+			Take:     take,
 		},
 	)
 	if err != nil {

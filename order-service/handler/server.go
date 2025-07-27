@@ -59,8 +59,12 @@ func (s *grpcServer) PostOrder(
 	ctx context.Context,
 	r *pb.PostOrderRequest,
 ) (*pb.PostOrderResponse, error) {
+	tenantID, ok := ctx.Value("tenant_id").(string)
+	if !ok {
+		return nil, errors.New("tenant_id is not in context")
+	}
 	// Check if account exists
-	_, err := s.accountClient.GetAccount(ctx, r.AccountId)
+	_, err := s.accountClient.GetAccount(ctx, tenantID, r.AccountId)
 	if err != nil {
 		log.Println("Error getting account: ", err)
 		return nil, errors.New("account not found")
@@ -100,7 +104,7 @@ func (s *grpcServer) PostOrder(
 	}
 
 	// Call service implementation
-	order, err := s.service.PostOrder(ctx, r.AccountId, products)
+	order, err := s.service.PostOrder(ctx, r.TenantId, r.AccountId, products)
 	if err != nil {
 		log.Println("Error posting order: ", err)
 		return nil, errors.New("could not post order")
@@ -132,8 +136,13 @@ func (s *grpcServer) GetOrdersForAccount(
 	ctx context.Context,
 	r *pb.GetOrdersForAccountRequest,
 ) (*pb.GetOrdersForAccountResponse, error) {
+	// tenantID, ok := ctx.Value("tenant_id").(string)
+	// if !ok {
+	// 	return nil, errors.New("tenant_id is not in context")
+	// }
+
 	// Get orders for account
-	accountOrders, err := s.service.GetOrdersForAccount(ctx, r.AccountId)
+	accountOrders, err := s.service.GetOrdersForAccount(ctx, r.TenantId, r.AccountId)
 	if err != nil {
 		log.Println(err)
 		return nil, err

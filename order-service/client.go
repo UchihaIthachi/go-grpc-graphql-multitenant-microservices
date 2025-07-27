@@ -30,6 +30,7 @@ func (c *Client) Close() {
 
 func (c *Client) PostOrder(
 	ctx context.Context,
+	tenantID string,
 	accountID string,
 	products []domain.OrderedProduct,
 ) (*domain.Order, error) {
@@ -43,6 +44,7 @@ func (c *Client) PostOrder(
 	r, err := c.service.PostOrder(
 		ctx,
 		&pb.PostOrderRequest{
+			TenantId:  tenantID,
 			AccountId: accountID,
 			Products:  protoProducts,
 		},
@@ -65,8 +67,9 @@ func (c *Client) PostOrder(
 	}, nil
 }
 
-func (c *Client) GetOrdersForAccount(ctx context.Context, accountID string) ([]domain.Order, error) {
+func (c *Client) GetOrdersForAccount(ctx context.Context, tenantID, accountID string) ([]domain.Order, error) {
 	r, err := c.service.GetOrdersForAccount(ctx, &pb.GetOrdersForAccountRequest{
+		TenantId:  tenantID,
 		AccountId: accountID,
 	})
 	if err != nil {
