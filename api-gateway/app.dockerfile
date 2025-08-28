@@ -1,7 +1,8 @@
-FROM golang:1.22-alpine3.18 AS build
+FROM golang:1.24-alpine AS build
 RUN apk --no-cache add gcc g++ make ca-certificates
 WORKDIR /go/src/github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices
 COPY go.mod go.sum ./
+RUN go mod vendor
 COPY vendor vendor
 COPY account-service account-service
 COPY catalog-service catalog-service

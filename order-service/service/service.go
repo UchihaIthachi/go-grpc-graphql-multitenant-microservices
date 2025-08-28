@@ -19,10 +19,6 @@ type orderService struct {
 	repository repository.Repository
 }
 
-type orderService struct {
-	repository repository.Repository // ✅ use the interface
-}
-
 // NewService accepts any Repository implementation (e.g., CassandraRepo)
 func NewService(r repository.Repository) Service {
 	return &orderService{r}
