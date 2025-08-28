@@ -42,12 +42,11 @@ This system follows **Domain-Driven Design** and microservices best practices. I
 ## 🗂️ Project Structure
 
 ```text
-go-grpc-graphql-multitenant-microservices/
+go-grpc-graphql-microservices/
 ├── account-service/       # Manages accounts
 ├── catalog-service/       # Searchable product catalog
 ├── order-service/         # Order management
 ├── api-gateway/           # GraphQL Gateway
-├── pb/                    # Compiled Protobuf definitions
 ├── docker-compose.yml     # Local orchestration
 ├── .dockerignore
 └── README.md
@@ -61,7 +60,7 @@ Each service is isolated, built with Go, communicates over gRPC, and is wired in
 
 ### 🧰 Prerequisites
 
-- Go 1.13+
+- Go 1.24+
 - Docker + Docker Compose
 - `protoc` compiler
 
@@ -97,10 +96,11 @@ source ~/.bashrc
 
 ### 🛠️ Generate Protobuf files
 
+To generate the gRPC code for a service, run the following command from the root of the project:
 ```bash
-mkdir -p pb
-protoc --go_out=./pb --go-grpc_out=./pb account.proto
+make proto-account
 ```
+This will generate the protobuf files for the account service. You can do the same for the other services by running `make proto-catalog` and `make proto-order`.
 
 ---
 
