@@ -1,10 +1,6 @@
-CREATE TABLE IF NOT EXISTS tenants (
-  id CHAR(27) PRIMARY KEY,
-  name VARCHAR(255) NOT NULL
-);
+
 
 CREATE TABLE IF NOT EXISTS accounts (
   id CHAR(27) PRIMARY KEY,
   name VARCHAR(24) NOT NULL,
-  tenant_id CHAR(27) NOT NULL REFERENCES tenants(id)
 );

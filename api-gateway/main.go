@@ -43,12 +43,7 @@ func main() {
 
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tenantID := r.Header.Get("x-tenant-id")
-		if tenantID == "" {
-			http.Error(w, "x-tenant-id header is missing", http.StatusBadRequest)
-			return
-		}
-		ctx := context.WithValue(r.Context(), "tenant_id", tenantID)
+		ctx := context.WithValue(r.Context())
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

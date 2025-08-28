@@ -11,7 +11,7 @@ import (
 
 type Repository interface {
 	PutOrder(ctx context.Context, o domain.Order) error
-	GetOrdersForAccount(ctx context.Context, tenantID, accountID string) ([]domain.Order, error)
+	GetOrdersForAccount(ctx context.Context, accountID string) ([]domain.Order, error)
 	Close()
 }
 
@@ -41,8 +41,8 @@ func (r *cassandraRepository) Close() {
 // PutOrder inserts an order record into the Cassandra "orders" table
 func (r *cassandraRepository) PutOrder(ctx context.Context, o domain.Order) error {
 	if err := r.session.Query(
-		`INSERT INTO orders (id, created_at, tenant_id, account_id, total_price, products) VALUES (?, ?, ?, ?, ?, ?)`,
-		o.ID, o.CreatedAt, o.TenantID, o.AccountID, o.TotalPrice, o.Products,
+		`INSERT INTO orders (id, created_at, account_id, total_price, products) VALUES (?, ?, ?, ?, ?, ?)`,
+		o.ID, o.CreatedAt, o.AccountID, o.TotalPrice, o.Products,
 	).WithContext(ctx).Exec(); err != nil {
 		return fmt.Errorf("failed to put order: %w", err)
 	}
@@ -50,17 +50,16 @@ func (r *cassandraRepository) PutOrder(ctx context.Context, o domain.Order) erro
 }
 
 // GetOrdersForAccount retrieves orders for a specific account
-func (r *cassandraRepository) GetOrdersForAccount(ctx context.Context, tenantID, accountID string) ([]domain.Order, error) {
+func (r *cassandraRepository) GetOrdersForAccount(ctx context.Context, accountID string) ([]domain.Order, error) {
 	var orders []domain.Order
 
 	iter := r.session.Query(
-		`SELECT id, created_at, tenant_id, account_id, total_price, products FROM orders WHERE tenant_id = ? AND account_id = ?`,
-		tenantID,
+		`SELECT id, created_at, account_id, total_price, products FROM orders WHERE account_id = ?`,
 		accountID,
 	).WithContext(ctx).Iter()
 
 	var order domain.Order
-	for iter.Scan(&order.ID, &order.CreatedAt, &order.TenantID, &order.AccountID, &order.TotalPrice, &order.Products) {
+	for iter.Scan(&order.ID, &order.CreatedAt, &order.AccountID, &order.TotalPrice, &order.Products) {
 		orders = append(orders, order)
 	}
 

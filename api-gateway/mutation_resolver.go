@@ -20,9 +20,8 @@ type mutationResolver struct {
 func (r *mutationResolver) CreateAccount(ctx context.Context, in AccountInput) (*Account, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	tenantID := ctx.Value("tenant_id").(string)
 
-	a, err := r.server.accountClient.PostAccount(ctx, in.Name, tenantID)
+	a, err := r.server.accountClient.PostAccount(ctx, in.Name)
 	if err != nil {
 		log.Println(err)
 		return nil, err
@@ -52,10 +51,10 @@ func (r *mutationResolver) CreateProduct(ctx context.Context, in ProductInput) (
 	}, nil
 }
 
+
 func (r *mutationResolver) CreateOrder(ctx context.Context, in OrderInput) (*Order, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	tenantID := ctx.Value("tenant_id").(string)
 
 	var products []domain.OrderedProduct
 	for _, p := range in.Products {
@@ -68,7 +67,7 @@ func (r *mutationResolver) CreateOrder(ctx context.Context, in OrderInput) (*Ord
 		})
 	}
 
-	o, err := r.server.orderClient.PostOrder(ctx, tenantID, in.AccountID, products)
+	o, err := r.server.orderClient.PostOrder(ctx, in.AccountID, products)
 	if err != nil {
 		log.Println(err)
 		return nil, err

@@ -27,7 +27,6 @@ message PostOrderRequest {
         uint32 quantity = 3;
     }
 
-    string tenantId = 1;
     string accountId = 2;
     repeated OrderProduct products = 4;
 }
@@ -45,8 +44,7 @@ message GetOrderResponse {
 }
 
 message GetOrdersForAccountRequest {
-    string tenantId = 1;
-    string accountId = 2;
+    string accountId = 1;
 }
 
 message GetOrdersForAccountResponse {

@@ -8,7 +8,6 @@ type Order struct {
 	CreatedAt  time.Time
 	TotalPrice float64
 	AccountID  string
-	TenantID   string
 	Products   []OrderedProduct
 }
 

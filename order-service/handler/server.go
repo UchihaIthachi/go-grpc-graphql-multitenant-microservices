@@ -59,12 +59,9 @@ func (s *grpcServer) PostOrder(
 	ctx context.Context,
 	r *pb.PostOrderRequest,
 ) (*pb.PostOrderResponse, error) {
-	tenantID, ok := ctx.Value("tenant_id").(string)
-	if !ok {
-		return nil, errors.New("tenant_id is not in context")
-	}
+
 	// Check if account exists
-	_, err := s.accountClient.GetAccount(ctx, tenantID, r.AccountId)
+	_, err := s.accountClient.GetAccount(ctx, r.AccountId)
 	if err != nil {
 		log.Println("Error getting account: ", err)
 		return nil, errors.New("account not found")

@@ -29,8 +29,7 @@ func NewService(r repository.Repository) Service {
 }
 
 func (s orderService) PostOrder(
-	ctx context.Context,
-	tenantID, accountID string,
+	ctx context.Context, accountID string,
 	products []domain.OrderedProduct,
 ) (*domain.Order, error) {
 	o := &domain.Order{
@@ -38,7 +37,6 @@ func (s orderService) PostOrder(
 		CreatedAt: time.Now().UTC(),
 		AccountID: accountID,
 		Products:  products,
-		TenantID:  tenantID,
 	}
 	// Calculate total price
 	o.TotalPrice = 0.0
@@ -51,6 +49,6 @@ func (s orderService) PostOrder(
 	return o, nil
 }
 
-func (s orderService) GetOrdersForAccount(ctx context.Context, tenantID, accountID string) ([]domain.Order, error) {
-	return s.repository.GetOrdersForAccount(ctx, tenantID, accountID)
+func (s orderService) GetOrdersForAccount(ctx context.Context, accountID string) ([]domain.Order, error) {
+	return s.repository.GetOrdersForAccount(ctx, accountID)
 }

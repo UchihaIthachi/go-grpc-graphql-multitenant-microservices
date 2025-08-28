@@ -1,13 +1,13 @@
-# 🧩 Go gRPC GraphQL Multitenant Microservices
+# 🧩 Go gRPC Microservices With GraphQL Gateway
 
-This project demonstrates a modern **polyglot, multi-tenant microservices architecture** built with:
+This project demonstrates a modern **microservices architecture** built with:
 
 ✅ **Go** for backend services
 ✅ **gRPC** for high-performance inter-service communication
 ✅ **GraphQL** as a flexible API Gateway
 ✅ **Docker Compose** for local orchestration
 ✅ **PostgreSQL**, **Elasticsearch**, and optionally **Cassandra** for persistence
-✅ Designed for **multi-tenancy**, **observability**, and **scalability**
+✅ Designed for **observability**, and **scalability**
 
 ---
 
@@ -17,36 +17,25 @@ This system follows **Domain-Driven Design** and microservices best practices. I
 
 ### 🔧 Core Services
 
-| Service           | Responsibility                            | Database                | Protocol |
-| ----------------- | ----------------------------------------- | ----------------------- | -------- |
-| `account-service` | Manages accounts, users, and auth context | PostgreSQL              | gRPC     |
-| `catalog-service` | Product catalog with search functionality | Elasticsearch           | gRPC     |
-| `order-service`   | Order placement, storage, and status      | PostgreSQL \| Cassandra | gRPC     |
-| `api-gateway`     | Unified entrypoint for clients            | —                       | GraphQL  |
+| Service           | Responsibility                            | Database      | Protocol |
+| ----------------- | ----------------------------------------- | ------------- | -------- |
+| `account-service` | Manages accounts, users, and auth context | PostgreSQL    | gRPC     |
+| `catalog-service` | Product catalog with search functionality | Elasticsearch | gRPC     |
+| `order-service`   | Order placement, storage, and status      | Cassandra     | gRPC     |
+| `api-gateway`     | Unified entrypoint for clients            | —             | GraphQL  |
 
 ### 🔁 Communication Patterns
 
 - **Service-to-service** → gRPC with Protobuf definitions
 - **Client-to-system** → GraphQL via the `api-gateway`
-- **Multi-tenancy** → Propagated using metadata/header-based `tenant-id` context
 
 ### 📦 Polyglot Persistence
 
-| Data Type       | Backed By       | Notes                                 |
-| --------------- | --------------- | ------------------------------------- |
-| Account data    | PostgreSQL      | ACID-compliant, normalized structure  |
-| Product catalog | Elasticsearch   | Full-text search, filtering, scoring  |
-| Order records   | Cassandra (opt) | Scalable writes, denormalized storage |
-
----
-
-## ⚙️ Multi-Tenant Strategy
-
-This project is multi-tenant aware using a **"shared database, shared schema"** approach (or optionally, tenant-specific indices/tables).
-
-- Each service enforces `tenant_id` scoping
-- GraphQL Gateway receives `X-Tenant-ID` header and passes it via gRPC metadata
-- Services extract the tenant context and apply it to DB queries or index lookups
+| Data Type       | Backed By     | Notes                                 |
+| --------------- | ------------- | ------------------------------------- |
+| Account data    | PostgreSQL    | ACID-compliant, normalized structure  |
+| Product catalog | Elasticsearch | Full-text search, filtering, scoring  |
+| Order records   | Cassandra     | Scalable writes, denormalized storage |
 
 ---
 
@@ -218,7 +207,7 @@ query {
 
 ## 🧠 Future Enhancements
 
-- JWT authentication & tenant isolation via auth service
+- JWT authentication isolation via auth service
 - GraphQL federation or REST fallback gateway
 - Cassandra integration for scalable order write storage
 - tRPC or REST proxy layer for frontend-first consumers

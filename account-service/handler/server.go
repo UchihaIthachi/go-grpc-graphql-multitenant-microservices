@@ -29,27 +29,20 @@ func ListenGRPC(s service.Service, port int) error {
 }
 
 func (s *grpcServer) PostAccount(ctx context.Context, r *pb.PostAccountRequest) (*pb.PostAccountResponse, error) {
-	tenantID, ok := ctx.Value("tenant_id").(string)
-	if !ok {
-		return nil, fmt.Errorf("tenant_id is not present in context")
-	}
-	a, err := s.service.PostAccount(ctx, tenantID, r.Name)
+
+	a, err := s.service.PostAccount(ctx, r.Name)
 	if err != nil {
 		return nil, err
 	}
 	return &pb.PostAccountResponse{Account: &pb.Account{
 		Id:       a.ID,
 		Name:     a.Name,
-		TenantId: a.TenantID,
 	}}, nil
 }
 
 func (s *grpcServer) GetAccount(ctx context.Context, r *pb.GetAccountRequest) (*pb.GetAccountResponse, error) {
-	tenantID, ok := ctx.Value("tenant_id").(string)
-	if !ok {
-		return nil, fmt.Errorf("tenant_id is not present in context")
-	}
-	a, err := s.service.GetAccount(ctx, tenantID, r.Id)
+
+	a, err := s.service.GetAccount(ctx, r.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -57,18 +50,14 @@ func (s *grpcServer) GetAccount(ctx context.Context, r *pb.GetAccountRequest) (*
 		Account: &pb.Account{
 			Id:       a.ID,
 			Name:     a.Name,
-			TenantId: a.TenantID,
 		},
 	}, nil
 }
 
 
 func (s *grpcServer) GetAccounts(ctx context.Context, r *pb.GetAccountsRequest) (*pb.GetAccountsResponse, error) {
-	tenantID, ok := ctx.Value("tenant_id").(string)
-	if !ok {
-		return nil, fmt.Errorf("tenant_id is not present in context")
-	}
-	res, err := s.service.GetAccounts(ctx, tenantID, r.Skip, r.Take)
+
+	res, err := s.service.GetAccounts(ctx, r.Skip, r.Take)
 	if err != nil {
 		return nil, err
 	}

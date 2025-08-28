@@ -3,20 +3,13 @@ package account;
 
 option go_package = "github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order-service/pb;pb";
 
-message Tenant {
-    string id = 1;
-    string name = 2;
-}
-
 message Account {
     string id = 1;
     string name = 2;
-    string tenant_id = 3;
 }
 
 message PostAccountRequest {
     string name = 1;
-    string tenant_id = 2;
 }
 
 message PostAccountResponse {
@@ -25,7 +18,6 @@ message PostAccountResponse {
 
 message GetAccountRequest {
     string id = 1;
-    string tenant_id = 2;
 }
 
 message GetAccountResponse {
@@ -35,24 +27,15 @@ message GetAccountResponse {
 message GetAccountsRequest {
     uint64 skip = 1;
     uint64 take = 2;
-    string tenant_id = 3;
 }
 
 message GetAccountsResponse {
     repeated Account accounts = 1;
 }
 
-message CreateTenantRequest {
-    string name = 1;
-}
-
-message CreateTenantResponse {
-    Tenant tenant = 1;
-}
 
 service AccountService {
-    rpc CreateTenant (CreateTenantRequest) returns (CreateTenantResponse) {
-    }
+
     rpc PostAccount (PostAccountRequest) returns (PostAccountResponse) {
     }
     rpc GetAccount (GetAccountRequest) returns (GetAccountResponse) {

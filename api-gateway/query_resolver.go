@@ -13,11 +13,10 @@ type queryResolver struct {
 func (r *queryResolver) Accounts(ctx context.Context, pagination *PaginationInput, id *string) ([]*Account, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	tenantID := ctx.Value("tenant_id").(string)
 
 	// Get single
 	if id != nil {
-		res, err := r.server.accountClient.GetAccount(ctx, tenantID, *id)
+		res, err := r.server.accountClient.GetAccount(ctx, *id)
 		if err != nil {
 			log.Println(err)
 			return nil, err
@@ -33,7 +32,7 @@ func (r *queryResolver) Accounts(ctx context.Context, pagination *PaginationInpu
 		skip, take = pagination.bounds()
 	}
 
-	accountList, err := r.server.accountClient.GetAccounts(ctx, tenantID, skip, take)
+	accountList, err := r.server.accountClient.GetAccounts(ctx, skip, take)
 	if err != nil {
 		log.Println(err)
 		return nil, err
