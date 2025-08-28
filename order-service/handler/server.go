@@ -8,11 +8,11 @@ import (
 	"log"
 	"net"
 
-	account "github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/account"
-	catalog "github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/catalog"
+	account "github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/account-service"
+	catalog "github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/catalog-service"
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order-service/domain"
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order-service/service"
-	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order/pb"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order-service/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -101,7 +101,7 @@ func (s *grpcServer) PostOrder(
 	}
 
 	// Call service implementation
-	order, err := s.service.PostOrder(ctx, r.TenantId, r.AccountId, products)
+	order, err := s.service.PostOrder(ctx, r.AccountId, products)
 	if err != nil {
 		log.Println("Error posting order: ", err)
 		return nil, errors.New("could not post order")
@@ -139,7 +139,7 @@ func (s *grpcServer) GetOrdersForAccount(
 	// }
 
 	// Get orders for account
-	accountOrders, err := s.service.GetOrdersForAccount(ctx, r.TenantId, r.AccountId)
+	accountOrders, err := s.service.GetOrdersForAccount(ctx, r.AccountId)
 	if err != nil {
 		log.Println(err)
 		return nil, err

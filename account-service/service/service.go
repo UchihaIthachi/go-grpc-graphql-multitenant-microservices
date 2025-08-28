@@ -9,8 +9,8 @@ import (
 )
 
 type Service interface {
-	PostAccount(ctx context.Context, tenantID, name string) (*domain.Account, error)
-	GetAccount(ctx context.Context,  id string) (*domain.Account, error)
+	PostAccount(ctx context.Context, name string) (*domain.Account, error)
+	GetAccount(ctx context.Context, id string) (*domain.Account, error)
 	GetAccounts(ctx context.Context, skip uint64, take uint64) ([]domain.Account, error)
 }
 

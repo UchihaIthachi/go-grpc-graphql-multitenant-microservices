@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/account-service/domain"
-	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/account/pb"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/account-service/pb"
 	"google.golang.org/grpc"
 )
 
@@ -26,10 +26,10 @@ func (c *Client) Close() {
 	c.conn.Close()
 }
 
-func (c *Client) PostAccount(ctx context.Context, name) (*domain.Account, error) {
+func (c *Client) PostAccount(ctx context.Context, name string) (*domain.Account, error) {
 	r, err := c.service.PostAccount(
 		ctx,
-		&pb.PostAccountRequest{Name: name, TenantId: tenantID},
+		&pb.PostAccountRequest{Name: name},
 	)
 	if err != nil {
 		return nil, err
