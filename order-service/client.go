@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order-service/domain"
-	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order-service/pb"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/order/pb"
 	"google.golang.org/grpc"
 )
 

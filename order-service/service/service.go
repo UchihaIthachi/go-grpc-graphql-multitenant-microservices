@@ -10,8 +10,13 @@ import (
 )
 
 type Service interface {
-	PostOrder(ctx context.Context, tenantID, accountID string, products []domain.OrderedProduct) (*domain.Order, error)
-	GetOrdersForAccount(ctx context.Context, tenantID, accountID string) ([]domain.Order, error)
+
+	PostOrder(ctx context.Context, accountID string, products []domain.OrderedProduct) (*domain.Order, error)
+	GetOrdersForAccount(ctx context.Context, accountID string) ([]domain.Order, error)
+}
+
+type orderService struct {
+	repository repository.Repository
 }
 
 type orderService struct {

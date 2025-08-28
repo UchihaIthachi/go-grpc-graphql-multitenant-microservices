@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/account-service/handler"
-	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/account-service/repository"
-	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/account-service/service"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/repository"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/service"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/tinrab/retry"
 )

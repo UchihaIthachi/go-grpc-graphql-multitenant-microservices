@@ -8,8 +8,8 @@ import (
 	"net"
 
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/catalog-service/domain"
-	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/catalog-service/pb"
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/catalog-service/service"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/catalog/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
