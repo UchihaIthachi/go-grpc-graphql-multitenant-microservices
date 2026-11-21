@@ -1,5 +1,12 @@
+# binaries
+/bin/
+*.exe
+**/app
+# editors
 .idea/
-/account-service/app
-/catalog-service/app
-/order-service/app
-/api-gateway/app
+.vscode/
+# local
+*.test
+*.out
+coverage.*
+go.sandbox.*

@@ -1,217 +1,53 @@
-# 🧩 Go gRPC Microservices With GraphQL Gateway
+# Multitenant order and payments platform (Go)
 
-This project demonstrates a modern **microservices architecture** built with:
+[![ci](https://github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/actions/workflows/ci.yml/badge.svg?branch=v2)](https://github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/actions/workflows/ci.yml)
 
-✅ **Go** for backend services
-✅ **gRPC** for high-performance inter-service communication
-✅ **GraphQL** as a flexible API Gateway
-✅ **Docker Compose** for local orchestration
-✅ **PostgreSQL**, **Elasticsearch**, and optionally **Cassandra** for persistence
-✅ Designed for **observability**, and **scalability**
+**Status: v2 rework in progress** on branch `v2`. The original gRPC + GraphQL demo is kept as tag
+[`v0-legacy`](https://github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/tree/v0-legacy).
 
----
+Goal: a small but correct commerce backend in Go. **Place order → reserve stock → take payment →
+confirm**, with compensation when a step fails, exact money, a double-entry ledger, idempotency on
+every write, and tenants isolated by Postgres row-level security. The design, decisions and phases
+are in [docs/design.md](docs/design.md).
 
-## 🏗️ Architecture Overview
+## What works today
 
-This system follows **Domain-Driven Design** and microservices best practices. It is designed for flexibility, fault isolation, and extensibility.
+| Part | What it guarantees | Proven by |
+|---|---|---|
+| `pkg/money` | Integer minor units + ISO currency; no floats; overflow and currency-mismatch errors; parsing never rounds | unit tests |
+| `pkg/tenancy`, `pkg/db` | Tenant in the context → `SET LOCAL app.tenant_id` per transaction; calls without a tenant are refused; serialization failures and deadlocks retried | ledger integration tests |
+| `internal/payment/ledger` | Double-entry ledger: every entry balances per currency, **enforced by the database at COMMIT**; postings are append-only, even for the owner; balances can't go negative unless allowed; posting is idempotent on a key (same key + different request = conflict) | 10 integration tests on real Postgres, race detector on |
 
-### 🔧 Core Services
+The integration tests that matter most:
 
-| Service           | Responsibility                            | Database      | Protocol |
-| ----------------- | ----------------------------------------- | ------------- | -------- |
-| `account-service` | Manages accounts, users, and auth context | PostgreSQL    | gRPC     |
-| `catalog-service` | Product catalog with search functionality | Elasticsearch | gRPC     |
-| `order-service`   | Order placement, storage, and status      | Cassandra     | gRPC     |
-| `api-gateway`     | Unified entrypoint for clients            | —             | GraphQL  |
+- **20 identical requests at once** → exactly one entry, balance moved once.
+- **10 workers × 30 random transfers** between 5 accounts → balances still sum to 0, and cached balances match the postings.
+- **Raw SQL as the app role** writing an unbalanced entry → rejected by the database.
+- **Tenant B with tenant A's account id** → can't read it and can't post against it. Foreign-key checks
+  ignore row-level security, so the tenant is part of the posting → account key; a mutation test
+  (dropping it) shows tenant B could otherwise move tenant A's money.
 
-### 🔁 Communication Patterns
+## Run the tests
 
-- **Service-to-service** → gRPC with Protobuf definitions
-- **Client-to-system** → GraphQL via the `api-gateway`
-
-### 📦 Polyglot Persistence
-
-| Data Type       | Backed By     | Notes                                 |
-| --------------- | ------------- | ------------------------------------- |
-| Account data    | PostgreSQL    | ACID-compliant, normalized structure  |
-| Product catalog | Elasticsearch | Full-text search, filtering, scoring  |
-| Order records   | Cassandra     | Scalable writes, denormalized storage |
-
----
-
-## 🗂️ Project Structure
-
-```text
-go-grpc-graphql-microservices/
-├── account-service/       # Manages accounts
-├── catalog-service/       # Searchable product catalog
-├── order-service/         # Order management
-├── api-gateway/           # GraphQL Gateway
-├── docker-compose.yml     # Local orchestration
-├── .dockerignore
-└── README.md
-```
-
-Each service is isolated, built with Go, communicates over gRPC, and is wired into the GraphQL API Gateway.
-
----
-
-## 🚀 Getting Started
-
-### 🧰 Prerequisites
-
-- Go 1.24+
-- Docker + Docker Compose
-- `protoc` compiler
-
-### 🧬 Clone & Launch
+Needs Go 1.27 and Docker.
 
 ```bash
-git clone https://github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices
-cd go-grpc-graphql-multitenant-microservices
-
-docker-compose up -d --build
+make test        # starts postgres:17 on :55432, runs everything with -race
+make lint        # go vet, gofmt, staticcheck
 ```
 
-Access GraphQL Playground at:
-📍 [http://localhost:8000/playground](http://localhost:8000/playground)
+Without `TEST_PG_DSN` the Postgres tests skip; CI fails if any of them skipped.
 
----
+## Roadmap
 
-## 🔧 gRPC Setup
-
-### 📦 Install protoc + Go plugins
-
-```bash
-wget https://github.com/protocolbuffers/protobuf/releases/download/v23.0/protoc-23.0-linux-x86_64.zip
-unzip protoc-23.0-linux-x86_64.zip -d protoc
-sudo mv protoc/bin/protoc /usr/local/bin/
-
-go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-
-export PATH="$PATH:$(go env GOPATH)/bin"
-source ~/.bashrc
-```
-
-### 🛠️ Generate Protobuf files
-
-To generate the gRPC code for a service, run the following command from the root of the project:
-```bash
-make proto-account
-```
-This will generate the protobuf files for the account service. You can do the same for the other services by running `make proto-catalog` and `make proto-order`.
-
----
-
-## 🕸️ GraphQL API Usage
-
-The GraphQL API aggregates data from all services.
-
-### 📘 Accounts
-
-```graphql
-query {
-  accounts {
-    id
-    name
-  }
-}
-```
-
-### ➕ Create Account
-
-```graphql
-mutation {
-  createAccount(account: { name: "John Doe" }) {
-    id
-    name
-  }
-}
-```
-
-### 🔍 Products
-
-```graphql
-query {
-  products {
-    id
-    name
-    price
-  }
-}
-```
-
-### 🔎 Search Products with Pagination
-
-```graphql
-query {
-  products(pagination: { skip: 0, take: 5 }, query: "camera") {
-    id
-    name
-    description
-    price
-  }
-}
-```
-
-### 🧾 Orders
-
-```graphql
-mutation {
-  createOrder(
-    order: { accountId: "acc-123", products: [{ id: "prod-1", quantity: 2 }] }
-  ) {
-    id
-    totalPrice
-    products {
-      name
-      quantity
-    }
-  }
-}
-```
-
-### 📊 Account with Orders
-
-```graphql
-query {
-  accounts(id: "acc-123") {
-    name
-    orders {
-      id
-      createdAt
-      totalPrice
-      products {
-        name
-        quantity
-        price
-      }
-    }
-  }
-}
-```
-
----
-
-## 📈 Observability & Operations
-
-| Tool       | Purpose                              |
-| ---------- | ------------------------------------ |
-| Zipkin     | Distributed tracing (optionally add) |
-| Prometheus | Metrics collection (optional)        |
-| Grafana    | Dashboards and alerts                |
-| ELK Stack  | Centralized logging (future)         |
-
----
-
-## 🧠 Future Enhancements
-
-- JWT authentication isolation via auth service
-- GraphQL federation or REST fallback gateway
-- Cassandra integration for scalable order write storage
-- tRPC or REST proxy layer for frontend-first consumers
-- ArgoCD or GitHub Actions CI/CD
-- Production-ready Helm chart and k8s manifests
-
----
+| Phase | Scope | Status |
+|---|---|---|
+| P0 | Branch `v2`, legacy tagged, vendor/binaries/Cassandra/Elasticsearch removed, CI | ✅ |
+| P1 | Money, tenancy, tenant-scoped transactions, migrations | ✅ |
+| P2 | Payment ledger | ✅ ledger · ⏳ payment intents (authorize / capture / refund) |
+| P3 | Catalog + stock reservations (no oversell under a 50-way race) | ⏳ |
+| P4 | Order saga (orchestrated, persisted), transactional outbox, Redpanda, idempotent consumers | ⏳ |
+| P5 | Fake card processor, signed webhooks, replay protection, daily reconciliation | ⏳ |
+| P6 | Account service, JWT, GraphQL gateway on current gqlgen, docker compose e2e | ⏳ |
+| P7 | OpenTelemetry → Jaeger, Prometheus, k6 load test, failure write-ups | ⏳ |
+| P8 | Architecture atlas, diagrams, Terraform for ECS Fargate + Aurora (validate only) | ⏳ |
