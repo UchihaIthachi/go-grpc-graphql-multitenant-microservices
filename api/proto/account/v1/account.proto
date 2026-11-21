@@ -1,0 +1,46 @@
+syntax = "proto3";
+package account.v1;
+option go_package = "github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/gen/account/v1;accountv1";
+
+// AccountService owns tenants, users and login. It is the only service that signs user tokens;
+// every other service only verifies them with the public key.
+service AccountService {
+  // SignUp creates a tenant (a shop) and its first admin user. No token needed.
+  rpc SignUp(SignUpRequest) returns (AuthResponse);
+  // Register adds a customer to an existing tenant. No token needed.
+  rpc Register(RegisterRequest) returns (AuthResponse);
+  // Login exchanges a password for a token. No token needed.
+  rpc Login(LoginRequest) returns (AuthResponse);
+  // Me returns the caller.
+  rpc Me(MeRequest) returns (User);
+}
+
+message SignUpRequest {
+  string tenant_name = 1;
+  string tenant_slug = 2; // lower-case letters, digits and dashes
+  string email = 3;
+  string password = 4;
+}
+message RegisterRequest {
+  string tenant_slug = 1;
+  string email = 2;
+  string password = 3;
+}
+message LoginRequest {
+  string tenant_slug = 1;
+  string email = 2;
+  string password = 3;
+}
+message AuthResponse {
+  string token = 1;
+  int64 expires_at_unix = 2;
+  User user = 3;
+}
+message MeRequest {}
+message User {
+  string id = 1;
+  string tenant_id = 2;
+  string tenant_slug = 3;
+  string email = 4;
+  string role = 5; // "admin" or "customer"
+}

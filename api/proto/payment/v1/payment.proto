@@ -1,0 +1,49 @@
+syntax = "proto3";
+package payment.v1;
+option go_package = "github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/gen/payment/v1;paymentv1";
+
+import "common/v1/money.proto";
+
+// PaymentService owns payment intents, the ledger and reconciliation. Authorize/Capture/Void/
+// Refund are the money steps of the order saga and are idempotent on order_id.
+//
+// Errors: NOT_FOUND, INVALID_ARGUMENT, ALREADY_EXISTS (same order, different payment),
+// UNAVAILABLE (processor down: retry), and FAILED_PRECONDITION with an ErrorInfo reason of
+// DECLINED or INVALID_STATE.
+service PaymentService {
+  rpc Authorize(AuthorizeRequest) returns (Payment);
+  rpc Capture(OrderRef) returns (Payment);
+  rpc Void(OrderRef) returns (Payment);
+  rpc Refund(OrderRef) returns (Payment);
+  rpc GetPayment(OrderRef) returns (Payment);
+  rpc Reconcile(ReconcileRequest) returns (ReconcileResponse); // admin
+}
+
+message AuthorizeRequest {
+  string order_id = 1;
+  string customer_id = 2;
+  common.v1.Money amount = 3;
+  string payment_method = 4;
+}
+message OrderRef { string order_id = 1; }
+message Payment {
+  string id = 1;
+  string order_id = 2;
+  string status = 3;
+  common.v1.Money amount = 4;
+  int64 fee_minor = 5;
+  string failure_reason = 6;
+  string charge_id = 7;
+}
+message ReconcileRequest { string day = 1; } // YYYY-MM-DD, UTC
+message ReconcileResponse {
+  string run_id = 1;
+  int32 matched = 2;
+  repeated ReconBreak breaks = 3;
+}
+message ReconBreak {
+  string kind = 1;
+  string charge_id = 2;
+  int64 ledger_minor = 3;
+  int64 psp_minor = 4;
+}

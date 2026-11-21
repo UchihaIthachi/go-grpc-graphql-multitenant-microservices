@@ -1,0 +1,11 @@
+# `make proto` regenerates gen/ (needs Docker; plugins run remotely on the Buf registry).
+version: v2
+managed:
+  enabled: false
+plugins:
+  - remote: buf.build/protocolbuffers/go:v1.36.11
+    out: .
+    opt: module=github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices
+  - remote: buf.build/grpc/go:v1.6.0
+    out: .
+    opt: module=github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices

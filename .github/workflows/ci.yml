@@ -36,3 +36,25 @@ jobs:
         run: go test -race -count=1 -v ./... 2>&1 | tee test.log; exit ${PIPESTATUS[0]}
       - name: no integration test was skipped
         run: "! grep -q 'TEST_PG_DSN not set' test.log"
+
+  compose-e2e:
+    # The real thing: build every image, start Postgres 17 + Redpanda + all services with
+    # docker compose, and drive it through GraphQL with scripts/e2e.sh.
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: start stack
+        run: make up
+      - name: end-to-end
+        run: make e2e
+      - name: service logs
+        if: failure()
+        run: docker compose -f deploy/compose/docker-compose.yml logs --no-color --tail 200
+      - name: stop
+        if: always()
+        run: make down

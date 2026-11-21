@@ -1,0 +1,9 @@
+syntax = "proto3";
+package common.v1;
+option go_package = "github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/gen/common/v1;commonv1";
+
+// Money is an amount in the currency's minor unit (cents for USD): never a float.
+message Money {
+  int64 amount_minor = 1;
+  string currency = 2; // ISO 4217, upper case
+}

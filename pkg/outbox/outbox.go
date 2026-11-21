@@ -37,6 +37,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/pkg/lab"
+
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/pkg/tenancy"
 )
 
@@ -159,7 +161,13 @@ func (r Relay) Once(ctx context.Context) (int, error) {
 	if _, err := tx.Exec(ctx, fmt.Sprintf(`UPDATE %s SET published_at = now() WHERE id = ANY($1)`, r.Table), ids); err != nil {
 		return 0, err
 	}
-	return len(msgs), tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	for _, m := range msgs {
+		lab.Emit(lab.WithOrder(ctx, m.Key), lab.Event{Kind: lab.KindPublish, To: lab.Kafka, Label: m.Headers["event-type"], OK: true})
+	}
+	return len(msgs), nil
 }
 
 // FirstDelivery records that consumer handled eventID, inside the handler's transaction.

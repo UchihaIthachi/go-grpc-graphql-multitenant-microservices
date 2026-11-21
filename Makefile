@@ -3,7 +3,7 @@ GO       ?= go
 PG_PORT  ?= 55432
 TEST_PG_DSN ?= postgres://postgres:postgres@localhost:$(PG_PORT)/postgres?sslmode=disable
 
-.PHONY: help test test-unit test-db test-db-down vet lint tidy
+.PHONY: help test test-unit test-db test-db-down vet lint tidy keys up down logs e2e proto
 
 help:            ## list targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*##/\t/'
@@ -30,3 +30,24 @@ lint: vet        ## staticcheck
 
 tidy:            ## go mod tidy
 	$(GO) mod tidy
+
+COMPOSE = docker compose -f deploy/compose/docker-compose.yml
+
+keys:            ## create deploy/compose/.env with fresh local keys (once)
+	@test -f deploy/compose/.env && echo "deploy/compose/.env exists" || ($(GO) run ./cmd/devkeys > deploy/compose/.env && echo "wrote deploy/compose/.env")
+
+up: keys         ## build and start the whole stack (GraphQL :8080, Pattern Lab :8090, Redpanda Console :8081)
+	$(COMPOSE) up -d --build --wait
+
+down:            ## stop the stack and delete its data
+	$(COMPOSE) down -v
+
+logs:            ## follow service logs
+	$(COMPOSE) logs -f account catalog payment order gateway fakepsp
+
+e2e:             ## end-to-end checks against the running stack
+	COMPOSE='$(COMPOSE)' ./scripts/e2e.sh
+
+proto:           ## regenerate gen/ from api/proto (Docker)
+	docker run --rm -v "$$PWD":/w -w /w bufbuild/buf:1.47.2 lint
+	docker run --rm -v "$$PWD":/w -w /w bufbuild/buf:1.47.2 generate

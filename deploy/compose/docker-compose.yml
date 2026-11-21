@@ -1,0 +1,129 @@
+# Local stack: `make up`, then `make e2e`. GraphQL at http://localhost:8080/graphql,
+# Pattern Lab at http://localhost:8090, Redpanda Console at http://localhost:8081.
+name: shop
+
+x-service: &service
+  build:
+    context: ../..
+    dockerfile: deploy/Dockerfile
+  restart: unless-stopped
+  env_file: .env
+  environment: &env
+    LOG_LEVEL: info
+    APP_DB_ROLE: app
+    KAFKA_BROKERS: redpanda:9092
+    LAB_URL: http://lab:8090
+    LAB_TOKEN: ${LAB_TOKEN:-local-lab-token}
+  depends_on: &deps
+    postgres: { condition: service_healthy }
+    redpanda: { condition: service_healthy }
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - ./initdb.sql:/docker-entrypoint-initdb.d/initdb.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres && psql -U postgres -lqt | grep -q orders"]
+      interval: 2s
+      retries: 30
+
+  redpanda:
+    image: redpandadata/redpanda:v24.2.7
+    command: >-
+      redpanda start --mode dev-container --smp 1 --memory 512M --overprovisioned
+      --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+    ports: ["19092:19092"]
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
+      interval: 3s
+      retries: 40
+
+  console:
+    image: redpandadata/console:v2.7.2
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+    ports: ["8081:8080"]
+    depends_on: { redpanda: { condition: service_healthy } }
+
+  account:
+    <<: *service
+    build: { context: ../.., dockerfile: deploy/Dockerfile, args: { SERVICE: account } }
+    environment:
+      <<: *env
+      DATABASE_OWNER_URL: postgres://owner:owner@postgres:5432/account
+      DATABASE_URL: postgres://app:app@postgres:5432/account
+
+  catalog:
+    <<: *service
+    build: { context: ../.., dockerfile: deploy/Dockerfile, args: { SERVICE: catalog } }
+    environment:
+      <<: *env
+      DATABASE_OWNER_URL: postgres://owner:owner@postgres:5432/catalog
+      DATABASE_URL: postgres://app:app@postgres:5432/catalog
+      RESERVATION_TTL: 15m
+
+  payment:
+    <<: *service
+    build: { context: ../.., dockerfile: deploy/Dockerfile, args: { SERVICE: payment } }
+    environment:
+      <<: *env
+      DATABASE_OWNER_URL: postgres://owner:owner@postgres:5432/payment
+      DATABASE_URL: postgres://app:app@postgres:5432/payment
+      PSP_URL: http://fakepsp:8080
+
+  order:
+    <<: *service
+    build: { context: ../.., dockerfile: deploy/Dockerfile, args: { SERVICE: order } }
+    environment:
+      <<: *env
+      DATABASE_OWNER_URL: postgres://owner:owner@postgres:5432/orders
+      DATABASE_URL: postgres://app:app@postgres:5432/orders
+      CATALOG_ADDR: catalog:9000
+      PAYMENT_ADDR: payment:9000
+
+  fakepsp:
+    <<: *service
+    build: { context: ../.., dockerfile: deploy/Dockerfile, args: { SERVICE: fakepsp } }
+    environment:
+      LAB_URL: http://lab:8090
+      LAB_TOKEN: ${LAB_TOKEN:-local-lab-token}
+      PSP_WEBHOOK_URL: http://payment:8080/webhooks/psp
+      PSP_FAIL_EVERY: ${PSP_FAIL_EVERY:-0}
+      PSP_LATENCY: ${PSP_LATENCY:-0s}
+    depends_on: {}
+
+  gateway:
+    <<: *service
+    build: { context: ../.., dockerfile: deploy/Dockerfile, args: { SERVICE: gateway } }
+    environment:
+      LAB_URL: http://lab:8090
+      LAB_TOKEN: ${LAB_TOKEN:-local-lab-token}
+      ACCOUNT_ADDR: account:9000
+      CATALOG_ADDR: catalog:9000
+      ORDER_ADDR: order:9000
+      PAYMENT_ADDR: payment:9000
+    ports: ["8080:8080"]
+    depends_on: [account, catalog, order, payment]
+
+  # Pattern Lab: live animation, chaos switches, load generator, invariant checks.
+  # Development only: it reads every tenant's data as the owner role.
+  lab:
+    <<: *service
+    build: { context: ../.., dockerfile: deploy/Dockerfile, args: { SERVICE: lab } }
+    environment:
+      LAB_TOKEN: ${LAB_TOKEN:-local-lab-token}
+      LAB_GATEWAY_URL: http://gateway:8080/graphql
+      LAB_CATALOG_DB: postgres://owner:owner@postgres:5432/catalog
+      LAB_PAYMENT_DB: postgres://owner:owner@postgres:5432/payment
+      LAB_ORDERS_DB: postgres://owner:owner@postgres:5432/orders
+    ports: ["8090:8090"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+volumes:
+  pgdata:

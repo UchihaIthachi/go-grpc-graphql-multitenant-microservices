@@ -10,3 +10,4 @@
 *.out
 coverage.*
 go.sandbox.*
+deploy/compose/.env

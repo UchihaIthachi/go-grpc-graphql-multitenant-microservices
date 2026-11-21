@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pattern Lab</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --ink: #1b1f24; --muted: #5b6573; --line: #d8dde4; --edge: #c3cad3;
+  --node: #ffffff; --node-ink: #1b1f24; --db: #eef2f6;
+  --rpc: #2f6fde; --err: #d33a3a; --db-ev: #138a7e; --state: #2e9d47; --comp: #8b4fd6; --retry: #d98a00;
+  --outbox: #64748b; --pub: #e0621b; --hook: #c2408f; --chaos: #d33a3a;
+  --ok: #2e9d47; --warn: #d98a00; --chip: #eef1f5;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1216; --panel: #171b21; --ink: #e7eaee; --muted: #9aa4b2; --line: #2a313a; --edge: #3a434e;
+    --node: #1e242c; --node-ink: #e7eaee; --db: #1a2027;
+    --rpc: #5b93ff; --err: #ff6363; --db-ev: #2fc0ad; --state: #4cc76a; --comp: #b07cff; --retry: #f2b13a;
+    --outbox: #8a98ab; --pub: #ff8a4c; --hook: #f06bb5; --chaos: #ff6363; --ok: #4cc76a; --warn: #f2b13a; --chip: #222932;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1216; --panel: #171b21; --ink: #e7eaee; --muted: #9aa4b2; --line: #2a313a; --edge: #3a434e;
+  --node: #1e242c; --node-ink: #e7eaee; --db: #1a2027;
+  --rpc: #5b93ff; --err: #ff6363; --db-ev: #2fc0ad; --state: #4cc76a; --comp: #b07cff; --retry: #f2b13a;
+  --outbox: #8a98ab; --pub: #ff8a4c; --hook: #f06bb5; --chaos: #ff6363; --ok: #4cc76a; --warn: #f2b13a; --chip: #222932;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { display: flex; align-items: center; gap: 16px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
+header h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: .2px; }
+header .sub { color: var(--muted); font-size: 13px; }
+header .spacer { flex: 1; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-right: 6px; vertical-align: middle; }
+.dot.on { background: var(--ok); }
+button, select, input[type=number], input[type=text] { font: inherit; color: var(--ink); background: var(--chip); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; }
+button { cursor: pointer; }
+button.primary { background: var(--rpc); color: #fff; border-color: transparent; }
+button.danger { background: var(--err); color: #fff; border-color: transparent; }
+button:disabled { opacity: .5; cursor: default; }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; height: calc(100% - 50px); }
+#stage { position: relative; min-width: 0; display: flex; flex-direction: column; }
+#diagram { flex: 1; min-height: 0; }
+svg { width: 100%; height: 100%; display: block; }
+.edge { fill: none; stroke: var(--edge); stroke-width: 1.6; }
+.edge.hot { stroke: var(--muted); }
+.node rect { fill: var(--node); stroke: var(--line); stroke-width: 1.4; rx: 10; }
+.node.db rect { fill: var(--db); }
+.node text { fill: var(--node-ink); font-size: 13px; font-weight: 600; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+.node .meta { fill: var(--muted); font-size: 10.5px; font-weight: 500; }
+.node.paused rect { stroke-dasharray: 5 4; opacity: .55; }
+.node.flash-ok rect { stroke: var(--ok); stroke-width: 2.6; }
+.node.flash-err rect { stroke: var(--err); stroke-width: 3; }
+.pulse { fill: none; stroke-width: 2; }
+.tag { font-size: 10.5px; font-weight: 600; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; }
+#legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 16px; border-top: 1px solid var(--line); background: var(--panel); font-size: 12px; color: var(--muted); }
+#legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+#stats { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 1px; background: var(--line); border-top: 1px solid var(--line); }
+#stats div { background: var(--panel); padding: 8px 10px; }
+#stats b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+#stats span { color: var(--muted); font-size: 11.5px; }
+aside { border-left: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+.tabs { display: flex; border-bottom: 1px solid var(--line); }
+.tabs button { flex: 1; border: 0; border-radius: 0; background: none; padding: 10px 6px; color: var(--muted); border-bottom: 2px solid transparent; }
+.tabs button.active { color: var(--ink); border-bottom-color: var(--rpc); font-weight: 600; }
+.pane { display: none; overflow: auto; padding: 12px 14px 20px; flex: 1; min-height: 0; }
+.pane.active { display: block; }
+h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 16px 0 8px; }
+h3:first-child { margin-top: 2px; }
+.row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.row label { flex: 1; }
+.row output { min-width: 56px; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+input[type=range] { flex: 1.3; accent-color: var(--rpc); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 13px; }
+.grid2 span { color: var(--muted); }
+.check { display: grid; grid-template-columns: 14px 1fr; gap: 2px 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.check .name { font-weight: 600; }
+.check .val { grid-column: 2; font-variant-numeric: tabular-nums; }
+.check .det { grid-column: 2; color: var(--muted); font-size: 12px; }
+.check .kind { color: var(--muted); font-size: 11px; font-weight: 500; margin-left: 6px; }
+.switch-list .sw { padding: 6px 0; border-bottom: 1px dashed var(--line); color: var(--muted); font-size: 13px; }
+.switch-list .sw b { color: var(--ink); font-weight: 600; }
+#log { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+#log .ev { display: grid; grid-template-columns: 62px 74px 1fr; gap: 6px; padding: 2px 0; border-bottom: 1px solid var(--line); }
+#log .t { color: var(--muted); }
+.kind { border-radius: 4px; padding: 0 5px; color: #fff; font-size: 11px; text-align: center; }
+a.order { color: var(--rpc); cursor: pointer; text-decoration: underline; }
+.timeline .ev { display: grid; grid-template-columns: 64px 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.timeline .ev .t { color: var(--muted); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.banner { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; }
+.banner.show { opacity: 1; }
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; height: auto; }
+  #diagram { height: 60vh; flex: none; }
+  aside { border-left: 0; border-top: 1px solid var(--line); min-height: 70vh; }
+  #stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  header .sub { display: none; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Pattern Lab</h1>
+  <span class="sub">live view of the real services · every dot is a real call, write or event</span>
+  <span class="spacer"></span>
+  <span id="conn"><span class="dot"></span>connecting…</span>
+  <button id="theme" title="Toggle theme">◐</button>
+</header>
+<main>
+  <section id="stage">
+    <div id="diagram"><svg id="svg" viewBox="0 0 1000 620" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Live system diagram"></svg></div>
+    <div class="banner" id="banner"></div>
+    <div id="legend"></div>
+    <div id="stats"></div>
+  </section>
+  <aside>
+    <div class="tabs" role="tablist">
+      <button class="active" data-tab="controls">Controls</button>
+      <button data-tab="checks">Invariants</button>
+      <button data-tab="log">Events</button>
+      <button data-tab="order">Order</button>
+    </div>
+    <div class="pane active" id="pane-controls">
+      <h3>Load (real customers via GraphQL)</h3>
+      <div class="row"><button class="primary" id="loadBtn">Start load</button><button id="restock">Restock +50</button></div>
+      <div class="row"><label for="rps">Orders per second</label><input type="range" id="rps" min="0.2" max="20" step="0.2" value="2"><output id="rpsOut">2</output></div>
+      <div id="mix"></div>
+      <div class="grid2" id="loadStats"></div>
+
+      <h3>Chaos</h3>
+      <div class="row"><label for="pspFail">Processor failure</label><input type="range" id="pspFail" min="0" max="100" step="5" value="0"><output id="pspFailOut">0%</output></div>
+      <div class="row"><label for="pspLat">Processor latency</label><input type="range" id="pspLat" min="0" max="3000" step="100" value="0"><output id="pspLatOut">0 ms</output></div>
+      <div class="row"><label><input type="checkbox" id="dupHooks"> Duplicate webhooks</label></div>
+      <div class="row" style="flex-wrap: wrap" id="pauses"></div>
+      <div class="row"><button id="resetChaos">Reset chaos</button></div>
+
+      <h3>Pattern switches</h3>
+      <div class="switch-list muted" id="switches"></div>
+    </div>
+    <div class="pane" id="pane-checks">
+      <h3>Invariants and health (checked every 2 s against the real databases)</h3>
+      <div id="checks"><p class="muted">Waiting for the first check…</p></div>
+    </div>
+    <div class="pane" id="pane-log">
+      <div class="row"><input type="text" id="logFilter" placeholder="filter: kind, service, order id…" style="flex:1"><button id="logPause">Pause</button></div>
+      <div id="log"></div>
+    </div>
+    <div class="pane" id="pane-order">
+      <div class="row"><input type="text" id="orderId" placeholder="order id" style="flex:1"><button id="orderLoad">Show</button></div>
+      <div class="row"><button class="primary" id="replay" disabled>Replay on diagram</button><select id="speed"><option value="1">1×</option><option value="0.5">2×</option><option value="0.25">4×</option></select></div>
+      <div class="timeline" id="timeline"><p class="muted">Click an order id in the Events tab, or paste one.</p></div>
+    </div>
+  </aside>
+</main>
+<script>
+"use strict";
+// ---------- topology ----------
+const NODES = {
+  client:     { x: 70,  y: 300, label: "Client", meta: "load generator" },
+  gateway:    { x: 235, y: 300, label: "Gateway", meta: "GraphQL" },
+  account:    { x: 465, y: 75,  label: "Account", meta: "gRPC" },
+  catalog:    { x: 465, y: 210, label: "Catalog", meta: "gRPC" },
+  order:      { x: 465, y: 375, label: "Order", meta: "saga orchestrator" },
+  payment:    { x: 465, y: 525, label: "Payment", meta: "gRPC + webhooks" },
+  "account-db": { x: 665, y: 75,  label: "account", meta: "Postgres", db: true },
+  "catalog-db": { x: 665, y: 210, label: "catalog", meta: "Postgres", db: true },
+  "order-db":   { x: 665, y: 375, label: "orders", meta: "Postgres + outbox", db: true },
+  "payment-db": { x: 665, y: 525, label: "payment", meta: "ledger + outbox", db: true },
+  kafka:      { x: 880, y: 300, label: "Kafka", meta: "Redpanda" },
+  psp:        { x: 880, y: 560, label: "Processor", meta: "fake PSP" },
+};
+const W = 128, H = 50;
+// edges: [from, to, bend] — bend pushes the curve sideways so parallel edges don't overlap
+const EDGES = [
+  ["client", "gateway", 0],
+  ["gateway", "account", 0], ["gateway", "catalog", 0], ["gateway", "order", 0], ["gateway", "payment", 0],
+  ["order", "catalog", 70], ["order", "payment", 70],
+  ["catalog", "catalog-db", 0], ["order", "order-db", 0], ["payment", "payment-db", 0], ["account", "account-db", 0],
+  ["order", "kafka", -70], ["payment", "kafka", 40],
+  ["payment", "psp", 70], ["psp", "payment", -120],
+];
+const COLORS = { rpc: "--rpc", db: "--db-ev", state: "--state", compensate: "--comp", retry: "--retry",
+  outbox: "--outbox", publish: "--pub", webhook: "--hook", chaos: "--chaos" };
+const LEGEND = [["rpc", "call (gRPC/HTTP)"], ["db", "database write"], ["state", "saga step"], ["compensate", "compensation"],
+  ["retry", "retry scheduled"], ["outbox", "outbox row"], ["publish", "published to Kafka"], ["webhook", "webhook"], ["err", "failed"]];
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const svg = document.getElementById("svg");
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+
+const edgeLayer = el("g", {}, svg), nodeLayer = el("g", {}, svg), dotLayer = el("g", {}, svg);
+const paths = {};
+function anchor(a, b) { // point on a's box border towards b
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const sx = (W / 2) / Math.abs(dx || 1e-6), sy = (H / 2) / Math.abs(dy || 1e-6), s = Math.min(sx, sy);
+  return { x: a.x + dx * s, y: a.y + dy * s };
+}
+for (const [f, t, bend] of EDGES) {
+  const a = NODES[f], b = NODES[t];
+  const p1 = anchor(a, b), p2 = anchor(b, a);
+  const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+  const len = Math.hypot(p2.x - p1.x, p2.y - p1.y) || 1;
+  const nx = -(p2.y - p1.y) / len, ny = (p2.x - p1.x) / len;
+  const d = `M${p1.x},${p1.y} Q${mx + nx * bend},${my + ny * bend} ${p2.x},${p2.y}`;
+  paths[f + ">" + t] = el("path", { d, class: "edge" }, edgeLayer);
+}
+const nodeEls = {};
+for (const id in NODES) {
+  const n = NODES[id];
+  const g = el("g", { class: "node" + (n.db ? " db" : ""), transform: `translate(${n.x - W / 2},${n.y - H / 2})` }, nodeLayer);
+  el("rect", { width: W, height: H, rx: n.db ? 18 : 10 }, g);
+  const t = el("text", { x: W / 2, y: 19 }, g); t.textContent = n.label;
+  const m = el("text", { x: W / 2, y: 36, class: "meta" }, g); m.textContent = n.meta;
+  nodeEls[id] = { g, meta: m, base: n.meta };
+}
+document.getElementById("legend").innerHTML = LEGEND.map(([k, l]) =>
+  `<span><i style="background:var(${k === "err" ? "--err" : COLORS[k]})"></i>${l}</span>`).join("");
+
+// ---------- animation ----------
+const dots = [];
+let dropped = 0;
+function pathFor(from, to) {
+  if (paths[from + ">" + to]) return { p: paths[from + ">" + to], rev: false };
+  if (paths[to + ">" + from]) return { p: paths[to + ">" + from], rev: true };
+  return null;
+}
+function animate(ev, speed = 1) {
+  const color = ev.ok === false && ev.kind !== "compensate" ? css("--err") : css(COLORS[ev.kind] || "--rpc");
+  if (ev.from === ev.to || !pathFor(ev.from, ev.to)) { flash(ev.to || ev.from, ev.ok !== false); return; }
+  if (dots.length > 260) { dropped++; flash(ev.to, ev.ok !== false); return; }
+  const { p, rev } = pathFor(ev.from, ev.to);
+  const c = el("circle", { r: ev.kind === "state" || ev.kind === "compensate" ? 6 : 4.5, fill: color }, dotLayer);
+  let tag = null; // labels only for saga steps, and only a few at a time, so the picture stays readable
+  if ((ev.kind === "state" || ev.kind === "compensate") && dots.filter(d => d.tag).length < 3 && !dots.some(d => d.tag && d.p === pathFor(ev.from, ev.to).p)) {
+    tag = el("text", { class: "tag", fill: color }, dotLayer);
+    tag.textContent = ev.label;
+  }
+  p.classList.add("hot");
+  dots.push({ c, tag, p, rev, t0: performance.now(), dur: 700 * speed, ev, len: p.getTotalLength() });
+}
+function flash(id, ok) {
+  const n = nodeEls[id]; if (!n) return;
+  n.g.classList.remove("flash-ok", "flash-err"); void n.g.getBBox();
+  n.g.classList.add(ok ? "flash-ok" : "flash-err");
+  clearTimeout(n.timer); n.timer = setTimeout(() => n.g.classList.remove("flash-ok", "flash-err"), 350);
+}
+function frame(now) {
+  for (let i = dots.length - 1; i >= 0; i--) {
+    const d = dots[i], k = Math.min(1, (now - d.t0) / d.dur);
+    const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    const pt = d.p.getPointAtLength((d.rev ? 1 - e : e) * d.len);
+    d.c.setAttribute("cx", pt.x); d.c.setAttribute("cy", pt.y);
+    if (d.tag) { d.tag.setAttribute("x", pt.x - 20); d.tag.setAttribute("y", pt.y - 12); d.tag.style.opacity = k > 0.7 ? 0 : 1; }
+    if (k >= 1) {
+      d.c.remove(); if (d.tag) d.tag.remove();
+      flash(d.ev.to, d.ev.ok !== false || d.ev.kind === "compensate");
+      dots.splice(i, 1);
+      if (!dots.some(x => x.p === d.p)) d.p.classList.remove("hot");
+    }
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---------- rolling stats ----------
+const STATS = [
+  ["req", "requests/s", e => e.kind === "rpc" && e.from === "client"],
+  ["conf", "confirmed/s", e => e.kind === "state" && e.label === "CONFIRMED"],
+  ["rej", "rejected/s", e => e.kind === "state" && e.label === "REJECTED"],
+  ["err", "failed calls/s", e => e.kind === "rpc" && e.ok === false],
+  ["retry", "retries/s", e => e.kind === "retry"],
+  ["comp", "compensations/s", e => e.kind === "compensate"],
+  ["pub", "published/s", e => e.kind === "publish"],
+  ["hook", "webhooks/s", e => e.kind === "webhook"],
+];
+const statBuckets = Object.fromEntries(STATS.map(s => [s[0], []]));
+document.getElementById("stats").innerHTML = STATS.map(([k, l]) => `<div><b id="st-${k}">0</b><span>${l}</span></div>`).join("");
+function countStats(ev) { const now = Date.now(); for (const [k, , f] of STATS) if (f(ev)) statBuckets[k].push(now); }
+setInterval(() => {
+  const cut = Date.now() - 10000;
+  for (const [k] of STATS) {
+    const b = statBuckets[k]; while (b.length && b[0] < cut) b.shift();
+    document.getElementById("st-" + k).textContent = (b.length / 10).toFixed(1);
+  }
+  for (const id in nodeEls) {
+    const n = nodeEls[id]; const c = nodeCalls[id] || 0;
+    n.meta.textContent = paused[id] ? "paused" : (c ? `${n.base} · ${c}/s` : n.base);
+    n.g.classList.toggle("paused", !!paused[id]);
+    nodeCalls[id] = 0;
+  }
+}, 1000);
+const nodeCalls = {};
+
+// ---------- event log ----------
+const logEl = document.getElementById("log");
+let logPaused = false, logFilter = "";
+const logRows = [];
+function logEvent(ev) {
+  if (logPaused) return;
+  const text = `${ev.kind} ${ev.from} ${ev.to} ${ev.label} ${ev.order || ""} ${ev.detail || ""}`.toLowerCase();
+  if (logFilter && !text.includes(logFilter)) return;
+  const row = document.createElement("div");
+  row.className = "ev";
+  const t = new Date(ev.ts).toLocaleTimeString([], { hour12: false });
+  const color = ev.ok === false && ev.kind !== "compensate" ? "var(--err)" : `var(${COLORS[ev.kind] || "--rpc"})`;
+  row.innerHTML = `<span class="t">${t}</span><span class="kind" style="background:${color}">${ev.kind}</span><span></span>`;
+  const body = row.lastChild;
+  body.textContent = `${ev.from}→${ev.to} ${ev.label}${ev.ms ? ` ${ev.ms}ms` : ""}${ev.detail ? " · " + ev.detail : ""} `;
+  if (ev.order) { const a = document.createElement("a"); a.className = "order"; a.textContent = ev.order.slice(0, 8); a.onclick = () => showOrder(ev.order); body.appendChild(a); }
+  logEl.prepend(row); logRows.push(row);
+  if (logRows.length > 400) logRows.shift().remove();
+}
+document.getElementById("logFilter").oninput = e => { logFilter = e.target.value.toLowerCase().trim(); };
+document.getElementById("logPause").onclick = e => { logPaused = !logPaused; e.target.textContent = logPaused ? "Resume" : "Pause"; };
+
+// ---------- stream ----------
+const conn = document.getElementById("conn");
+let cfg = { chaos: { psp_fail_pct: 0, psp_latency_ms: 0, duplicate_webhooks: false }, paused: {}, patterns: {} };
+let paused = {};
+function connect() {
+  const es = new EventSource("stream");
+  es.onopen = () => { conn.innerHTML = '<span class="dot on"></span>live'; };
+  es.onerror = () => { conn.innerHTML = '<span class="dot"></span>reconnecting…'; };
+  es.addEventListener("ev", m => {
+    for (const ev of JSON.parse(m.data)) {
+      countStats(ev); logEvent(ev);
+      nodeCalls[ev.to] = (nodeCalls[ev.to] || 0) + 1;
+      if (!document.hidden) animate(ev);
+      if (ev.kind === "chaos" && ev.from === "lab") banner("Switches changed");
+    }
+  });
+  es.addEventListener("cfg", m => { cfg = JSON.parse(m.data); applyCfg(); });
+  es.addEventListener("inv", m => renderChecks(JSON.parse(m.data)));
+  es.addEventListener("load", m => renderLoad(JSON.parse(m.data)));
+}
+connect();
+function banner(text) { const b = document.getElementById("banner"); b.textContent = text; b.classList.add("show"); clearTimeout(b.t); b.t = setTimeout(() => b.classList.remove("show"), 1600); }
+
+// ---------- controls ----------
+const $ = id => document.getElementById(id);
+async function api(method, path, body) {
+  const r = await fetch(path, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  if (!r.ok) throw new Error(await r.text());
+  return r.status === 204 ? null : r.json();
+}
+const PMS = [["pm_ok", "Card ok", 80], ["pm_decline", "Declined", 10], ["pm_insufficient", "Insufficient funds", 5],
+  ["pm_expire_auth", "Capture fails", 5], ["pm_refund_fails", "Refund fails", 0]];
+$("mix").innerHTML = PMS.map(([k, l, v]) =>
+  `<div class="row"><label for="mx-${k}">${l}</label><input type="range" id="mx-${k}" min="0" max="100" step="5" value="${v}"><output id="mx-${k}-o">${v}</output></div>`).join("");
+let load = { running: false, rps: 2, mix: Object.fromEntries(PMS.map(p => [p[0], p[2]])) };
+function sendLoad() { api("PUT", "load", load).then(renderLoad).catch(e => banner(e.message)); }
+$("loadBtn").onclick = () => { load.running = !load.running; sendLoad(); };
+$("rps").oninput = e => { load.rps = +e.target.value; $("rpsOut").textContent = e.target.value; };
+$("rps").onchange = sendLoad;
+for (const [k] of PMS) {
+  $("mx-" + k).oninput = e => { load.mix[k] = +e.target.value; $("mx-" + k + "-o").textContent = e.target.value; };
+  $("mx-" + k).onchange = sendLoad;
+}
+$("restock").onclick = () => api("POST", "load/restock").then(() => banner("Restocked +50")).catch(e => banner(e.message));
+function renderLoad(s) {
+  load.running = s.running;
+  if (document.activeElement?.type !== "range") { // don't fight a slider the user is dragging
+    load.rps = s.rps; $("rps").value = s.rps; $("rpsOut").textContent = s.rps;
+    for (const [k] of PMS) { const v = (s.mix || {})[k] || 0; load.mix[k] = v; $("mx-" + k).value = v; $("mx-" + k + "-o").textContent = v; }
+  }
+  $("loadBtn").textContent = s.running ? "Stop load" : "Start load";
+  $("loadBtn").className = s.running ? "danger" : "primary";
+  const reasons = Object.entries(s.reasons || {}).map(([k, v]) => `${k} ${v}`).join(", ") || "—";
+  $("loadStats").innerHTML = `
+    <span>Shop</span><b>${s.shop || "—"}</b>
+    <span>Placed</span><b>${s.placed}</b>
+    <span>Confirmed</span><b>${s.confirmed}</b>
+    <span>Rejected</span><b>${s.rejected}</b>
+    <span>Still running</span><b>${s.in_flight}</b>
+    <span>API errors</span><b>${s.errors}</b>
+    <span>Latency p50 / p95</span><b>${s.p50_ms} / ${s.p95_ms} ms</b>
+    <span>Reject reasons</span><b style="font-weight:500">${reasons}</b>
+    ${s.last_error ? `<span>Last error</span><b style="font-weight:500;color:var(--err)">${escapeHtml(s.last_error)}</b>` : ""}`;
+}
+const SERVICES = ["catalog", "payment", "order", "account"];
+$("pauses").innerHTML = "<span class='muted' style='width:100%'>Pause a service (answers UNAVAILABLE):</span>" +
+  SERVICES.map(s => `<label style="flex:0 0 auto"><input type="checkbox" id="pause-${s}"> ${s}</label>`).join("");
+function sendCfg() { api("PUT", "config", cfg).catch(e => banner(e.message)); }
+$("pspFail").oninput = e => { $("pspFailOut").textContent = e.target.value + "%"; };
+$("pspFail").onchange = e => { cfg.chaos.psp_fail_pct = +e.target.value; sendCfg(); };
+$("pspLat").oninput = e => { $("pspLatOut").textContent = e.target.value + " ms"; };
+$("pspLat").onchange = e => { cfg.chaos.psp_latency_ms = +e.target.value; sendCfg(); };
+$("dupHooks").onchange = e => { cfg.chaos.duplicate_webhooks = e.target.checked; sendCfg(); };
+for (const s of SERVICES) $("pause-" + s).onchange = e => { cfg.paused = cfg.paused || {}; cfg.paused[s] = e.target.checked; sendCfg(); };
+$("resetChaos").onclick = () => { cfg.chaos = { psp_fail_pct: 0, psp_latency_ms: 0, duplicate_webhooks: false }; cfg.paused = {}; sendCfg(); };
+function applyCfg() {
+  cfg.chaos = cfg.chaos || {}; paused = cfg.paused || {};
+  $("pspFail").value = cfg.chaos.psp_fail_pct || 0; $("pspFailOut").textContent = (cfg.chaos.psp_fail_pct || 0) + "%";
+  $("pspLat").value = cfg.chaos.psp_latency_ms || 0; $("pspLatOut").textContent = (cfg.chaos.psp_latency_ms || 0) + " ms";
+  $("dupHooks").checked = !!cfg.chaos.duplicate_webhooks;
+  for (const s of SERVICES) $("pause-" + s).checked = !!paused[s];
+}
+const SWITCHES = [
+  ["Resilience on processor calls", "none · retry · backoff+jitter · circuit breaker · bulkhead", "B"],
+  ["Timeouts", "off ⚠ · on", "B"],
+  ["Idempotency key on placeOrder", "off ⚠ · on", "B"],
+  ["Stock reservation", "read-then-write ⚠ · atomic update", "B"],
+  ["Rate limiting", "off · per-tenant token bucket", "B"],
+  ["Saga style", "orchestration · choreography", "C"],
+  ["Event delivery", "dual write ⚠ · outbox + polling · outbox + CDC", "C"],
+  ["Consumers", "naive ⚠ · inbox + dead-letter queue", "C"],
+  ["Reads", "API composition · CQRS projection", "C"],
+  ["Tenant isolation", "app filter ⚠ · Postgres RLS", "C"],
+];
+$("switches").innerHTML = SWITCHES.map(([n, o, p]) => `<div class="sw"><b>${n}</b><br>${o} <span class="muted">— phase ${p}</span></div>`).join("") +
+  `<p class="muted" style="font-size:12px">Today the system runs the safe option of each: orchestration, outbox + polling, atomic stock updates, idempotency keys and RLS.</p>`;
+
+// ---------- invariants ----------
+function renderChecks(list) {
+  $("checks").innerHTML = list.map(c => `<div class="check">
+    <span class="dot ${c.ok ? "on" : ""}" style="${c.ok ? "" : `background:var(${c.kind === "invariant" ? "--err" : "--warn"})`};margin-top:5px"></span>
+    <span class="name">${escapeHtml(c.name)}<span class="kind">${c.kind}</span></span>
+    <span class="val">${escapeHtml(c.value)}</span><span class="det">${escapeHtml(c.detail)}</span></div>`).join("") ||
+    '<p class="muted">No databases configured for checks.</p>';
+  const broken = list.filter(c => !c.ok && c.kind === "invariant").length;
+  document.querySelector('[data-tab="checks"]').textContent = broken ? `Invariants (${broken} ✕)` : "Invariants";
+}
+
+// ---------- order timeline + replay ----------
+let orderEvents = [];
+async function showOrder(id) {
+  selectTab("order"); $("orderId").value = id;
+  orderEvents = await api("GET", "orders/" + encodeURIComponent(id));
+  $("replay").disabled = !orderEvents.length;
+  if (!orderEvents.length) { $("timeline").innerHTML = '<p class="muted">No events recorded for this order (the lab keeps the last 20,000).</p>'; return; }
+  const t0 = orderEvents[0].ts;
+  $("timeline").innerHTML = orderEvents.map(e => {
+    const color = e.ok === false && e.kind !== "compensate" ? "var(--err)" : `var(${COLORS[e.kind] || "--rpc"})`;
+    return `<div class="ev"><span class="t">+${e.ts - t0} ms</span><span><span class="kind" style="background:${color}">${e.kind}</span>
+      ${escapeHtml(e.from)}→${escapeHtml(e.to)} <b>${escapeHtml(e.label)}</b>${e.ms ? ` <span class="muted">${e.ms} ms</span>` : ""}
+      ${e.detail ? `<br><span class="muted">${escapeHtml(e.detail)}</span>` : ""}</span></div>`;
+  }).join("");
+}
+$("orderLoad").onclick = () => showOrder($("orderId").value.trim());
+$("replay").onclick = () => {
+  const k = +$("speed").value, t0 = orderEvents[0].ts;
+  orderEvents.forEach(e => setTimeout(() => animate(e, 1.6), Math.min((e.ts - t0) * k, 15000) + 0));
+  banner("Replaying order " + $("orderId").value.slice(0, 8));
+};
+
+// ---------- tabs, theme ----------
+function selectTab(name) {
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
+  document.querySelectorAll(".pane").forEach(p => p.classList.toggle("active", p.id === "pane-" + name));
+}
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => selectTab(b.dataset.tab));
+$("theme").onclick = () => {
+  const r = document.documentElement, dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  r.dataset.theme = dark ? "light" : "dark";
+};
+function escapeHtml(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+api("GET", "load").then(renderLoad).catch(() => {});
+api("GET", "invariants").then(renderChecks).catch(() => {});
+</script>
+</body>
+</html>

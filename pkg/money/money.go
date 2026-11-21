@@ -108,10 +108,13 @@ func digits(s string) bool {
 }
 
 // String formats as "12.34 USD".
-func (m Money) String() string {
+func (m Money) String() string { return m.Decimal() + " " + m.Currency }
+
+// Decimal formats the amount in major units without the currency: "12.34", "-0.05", "500" (JPY).
+func (m Money) Decimal() string {
 	exp := Exponent(m.Currency)
 	if exp == 0 {
-		return fmt.Sprintf("%d %s", m.Amount, m.Currency)
+		return fmt.Sprintf("%d", m.Amount)
 	}
 	scale := int64(math.Pow10(exp))
 	sign, a := "", m.Amount
@@ -125,7 +128,7 @@ func (m Money) String() string {
 	if r < 0 {
 		r = -r
 	}
-	return fmt.Sprintf("%s%d.%0*d %s", sign, q, exp, r, m.Currency)
+	return fmt.Sprintf("%s%d.%0*d", sign, q, exp, r)
 }
 
 // Add returns m + o; both must have the same currency.

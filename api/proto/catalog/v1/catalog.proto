@@ -1,0 +1,70 @@
+syntax = "proto3";
+package catalog.v1;
+option go_package = "github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/gen/catalog/v1;catalogv1";
+
+import "common/v1/money.proto";
+
+// CatalogService owns products and stock. Reserve/Commit/Release are the stock steps of the
+// order saga and are idempotent on order_id.
+//
+// Errors: NOT_FOUND, INVALID_ARGUMENT, ALREADY_EXISTS, and FAILED_PRECONDITION with an
+// ErrorInfo reason of OUT_OF_STOCK or RESERVATION_GONE.
+service CatalogService {
+  rpc CreateProduct(CreateProductRequest) returns (Product);   // admin
+  rpc AdjustStock(AdjustStockRequest) returns (Product);       // admin
+  rpc GetProducts(GetProductsRequest) returns (GetProductsResponse);
+  rpc SearchProducts(SearchProductsRequest) returns (SearchProductsResponse);
+  rpc ReserveStock(ReserveStockRequest) returns (ReserveStockResponse);
+  rpc CommitReservation(OrderRef) returns (Empty);
+  rpc ReleaseReservation(OrderRef) returns (Empty);
+}
+
+message Product {
+  string id = 1;
+  string sku = 2;
+  string name = 3;
+  string description = 4;
+  common.v1.Money price = 5;
+  int32 on_hand = 6;
+  int32 reserved = 7;
+  int32 available = 8;
+}
+message CreateProductRequest {
+  string sku = 1;
+  string name = 2;
+  string description = 3;
+  common.v1.Money price = 4;
+  int32 initial_stock = 5;
+}
+message AdjustStockRequest {
+  string product_id = 1;
+  int32 delta = 2;
+}
+message GetProductsRequest { repeated string ids = 1; }
+message GetProductsResponse { repeated Product products = 1; }
+message SearchProductsRequest {
+  string query = 1; // empty lists everything
+  int32 limit = 2;
+  string cursor = 3;
+}
+message SearchProductsResponse {
+  repeated Product products = 1;
+  string next_cursor = 2;
+}
+message Line {
+  string product_id = 1;
+  int32 qty = 2;
+}
+message ReserveStockRequest {
+  string order_id = 1;
+  repeated Line lines = 2;
+}
+message Reservation {
+  string product_id = 1;
+  int32 qty = 2;
+  string status = 3;
+  int64 expires_at_unix = 4;
+}
+message ReserveStockResponse { repeated Reservation reservations = 1; }
+message OrderRef { string order_id = 1; }
+message Empty {}

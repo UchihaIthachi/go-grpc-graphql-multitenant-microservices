@@ -1,0 +1,156 @@
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+type Query {
+  "The signed-in user."
+  me: User!
+  "Products of your shop. An empty query lists everything by name; otherwise results are ranked by relevance."
+  products(query: String = "", first: Int = 20, after: String): ProductPage!
+  product(id: ID!): Product
+  "Your order (admins: any order of the shop)."
+  order(id: ID!): Order
+  "Your most recent orders."
+  orders(first: Int = 20): [Order!]!
+}
+
+type Mutation {
+  "Create a shop and its first admin."
+  signUp(input: SignUpInput!): AuthPayload!
+  "Create a customer account in a shop."
+  register(input: CredentialsInput!): AuthPayload!
+  login(input: CredentialsInput!): AuthPayload!
+
+  "Admin."
+  createProduct(input: CreateProductInput!): Product!
+  "Admin. Positive delta adds stock, negative removes it."
+  adjustStock(productId: ID!, delta: Int!): Product!
+  "Admin. Match a day of processor settlements against the ledger (YYYY-MM-DD, UTC)."
+  reconcile(day: String!): ReconResult!
+
+  "Place an order. Safe to retry with the same requestId."
+  placeOrder(input: PlaceOrderInput!): Order!
+}
+
+input SignUpInput {
+  shopName: String!
+  shopSlug: String!
+  email: String!
+  password: String!
+}
+
+input CredentialsInput {
+  shopSlug: String!
+  email: String!
+  password: String!
+}
+
+input MoneyInput {
+  "Decimal string in major units, e.g. \"12.50\". Never a float."
+  amount: String!
+  currency: String!
+}
+
+input CreateProductInput {
+  sku: String!
+  name: String!
+  description: String = ""
+  price: MoneyInput!
+  initialStock: Int = 0
+}
+
+input LineInput {
+  productId: ID!
+  qty: Int!
+}
+
+input PlaceOrderInput {
+  requestId: String!
+  "Test tokens: pm_ok, pm_decline, pm_insufficient, pm_expire_auth, pm_refund_fails."
+  paymentMethod: String!
+  lines: [LineInput!]!
+}
+
+type AuthPayload {
+  token: String!
+  expiresAt: String!
+  user: User!
+}
+
+type User {
+  id: ID!
+  email: String!
+  role: String!
+  shopId: ID!
+  shopSlug: String!
+}
+
+type Money {
+  "Decimal string in major units, e.g. \"12.50\"."
+  amount: String!
+  "Minor units as a string (64-bit), e.g. \"1250\"."
+  minor: String!
+  currency: String!
+}
+
+type Product {
+  id: ID!
+  sku: String!
+  name: String!
+  description: String!
+  price: Money!
+  available: Int!
+  onHand: Int!
+  reserved: Int!
+}
+
+type ProductPage {
+  items: [Product!]!
+  nextCursor: String
+}
+
+type Order {
+  id: ID!
+  requestId: String!
+  "PENDING, STOCK_RESERVED, PAYMENT_AUTHORIZED, PAYMENT_CAPTURED, CONFIRMED, VOIDING_PAYMENT, REFUNDING_PAYMENT, RELEASING_STOCK or REJECTED."
+  status: String!
+  reason: String!
+  total: Money!
+  lines: [OrderLine!]!
+  "Every status the order has been through, oldest first."
+  history: [String!]!
+  createdAt: String!
+  "Admins only; null for customers."
+  payment: Payment
+}
+
+type OrderLine {
+  productId: ID!
+  sku: String!
+  name: String!
+  qty: Int!
+  unitPrice: Money!
+  subtotal: Money!
+}
+
+type Payment {
+  id: ID!
+  status: String!
+  amount: Money!
+  fee: Money!
+  failureReason: String!
+}
+
+type ReconResult {
+  runId: ID!
+  matched: Int!
+  breaks: [ReconBreak!]!
+}
+
+type ReconBreak {
+  kind: String!
+  chargeId: String!
+  ledgerMinor: String!
+  pspMinor: String!
+}

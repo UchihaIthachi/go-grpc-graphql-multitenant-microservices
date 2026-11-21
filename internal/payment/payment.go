@@ -20,6 +20,7 @@ import (
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/internal/payment/ledger"
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/internal/payment/psp"
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/pkg/db"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/pkg/lab"
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/pkg/money"
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/pkg/outbox"
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/pkg/tenancy"
@@ -301,7 +302,9 @@ func (s Service) Get(ctx context.Context, orderID string) (Intent, error) {
 // intent as it is now, so concurrent retries converge.
 func (s Service) transition(ctx context.Context, orderID, from, to string, extra func(pgx.Tx) error, event string) (Intent, error) {
 	var it Intent
+	moved := false
 	err := db.InTenantTx(ctx, s.DB, func(tx pgx.Tx) error {
+		moved = false
 		tag, err := tx.Exec(ctx, `UPDATE payment.intents SET status = $3, updated_at = now() WHERE order_id = $1 AND status = $2`, orderID, from, to)
 		if err != nil {
 			return err
@@ -316,11 +319,19 @@ func (s Service) transition(ctx context.Context, orderID, from, to string, extra
 		if it, err = get(ctx, tx, orderID); err != nil {
 			return err
 		}
-		if tag.RowsAffected() == 1 && event != "" {
+		moved = tag.RowsAffected() == 1
+		if moved && event != "" {
 			return outbox.Enqueue(ctx, tx, "payment.outbox", outbox.Event{Topic: Topic, Key: orderID, Type: event, Payload: eventPayload(it)})
 		}
 		return nil
 	})
+	if err == nil && moved {
+		ctx = lab.WithOrder(ctx, orderID)
+		lab.Emit(ctx, lab.Event{Kind: lab.KindDB, To: lab.DB(lab.Payment), Label: from + " → " + to, OK: to != Failed})
+		if event != "" {
+			lab.Emit(ctx, lab.Event{Kind: lab.KindOutbox, To: lab.DB(lab.Payment), Label: event, OK: true})
+		}
+	}
 	return it, err
 }
 

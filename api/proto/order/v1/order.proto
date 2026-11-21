@@ -1,0 +1,46 @@
+syntax = "proto3";
+package order.v1;
+option go_package = "github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/gen/order/v1;orderv1";
+
+import "common/v1/money.proto";
+
+// OrderService places orders and runs each one's saga (see internal/order).
+service OrderService {
+  // PlaceOrder is idempotent on request_id. It waits up to ~3 s for the saga; if the order is
+  // still in progress it is returned as-is and finishes in the background.
+  rpc PlaceOrder(PlaceOrderRequest) returns (Order);
+  rpc GetOrder(GetOrderRequest) returns (Order);
+  rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
+}
+
+message PlaceOrderRequest {
+  string request_id = 1;
+  string payment_method = 2;
+  repeated Line lines = 3;
+}
+message Line {
+  string product_id = 1;
+  int32 qty = 2;
+}
+message GetOrderRequest { string id = 1; }
+message ListOrdersRequest { int32 limit = 1; }
+message ListOrdersResponse { repeated Order orders = 1; }
+
+message Order {
+  string id = 1;
+  string request_id = 2;
+  string customer_id = 3;
+  string status = 4;
+  string reason = 5;
+  common.v1.Money total = 6;
+  repeated OrderLine lines = 7;
+  repeated string history = 8;
+  int64 created_at_unix = 9;
+}
+message OrderLine {
+  string product_id = 1;
+  string sku = 2;
+  string name = 3;
+  int32 qty = 4;
+  common.v1.Money unit_price = 5;
+}

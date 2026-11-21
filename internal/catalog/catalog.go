@@ -140,10 +140,12 @@ func (s Store) Search(ctx context.Context, query string, limit int, cursor strin
 	}
 	offset := 0
 	if cursor != "" {
-		b, err := base64.RawURLEncoding.DecodeString(cursor)
-		if offset, err = strconv.Atoi(string(b)); err != nil || offset < 0 {
+		b, derr := base64.RawURLEncoding.DecodeString(cursor)
+		n, aerr := strconv.Atoi(string(b))
+		if derr != nil || aerr != nil || n < 0 {
 			return nil, "", fmt.Errorf("%w: bad cursor", ErrInvalid)
 		}
+		offset = n
 	}
 	err = db.InTenantTx(ctx, s.DB, func(tx pgx.Tx) error {
 		var err error

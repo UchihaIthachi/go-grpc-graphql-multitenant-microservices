@@ -27,6 +27,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/pkg/db"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/pkg/lab"
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/pkg/money"
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/pkg/outbox"
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/pkg/tenancy"
@@ -248,6 +249,8 @@ func (e Engine) Place(ctx context.Context, in PlaceInput, waitFor time.Duration)
 		return Order{}, err
 	}
 
+	lab.Emit(ctx, lab.Event{Kind: lab.KindState, To: lab.DB(lab.Order), Label: Pending, OK: true, Order: id})
+	lab.Emit(ctx, lab.Event{Kind: lab.KindOutbox, To: lab.DB(lab.Order), Label: "order.pending", OK: true, Order: id})
 	wctx, cancel := context.WithTimeout(ctx, waitFor)
 	defer cancel()
 	if err := e.Advance(wctx, id); err != nil && wctx.Err() == nil {
@@ -262,6 +265,7 @@ var errDuplicate = errors.New("duplicate request")
 // transiently (retry scheduled), ctx ends, or another runner holds the lease.
 func (e Engine) Advance(ctx context.Context, id string) error {
 	e = e.defaults()
+	ctx = lab.WithOrder(ctx, id)
 	if !e.acquire(ctx, id) {
 		return nil // someone else is on it
 	}
@@ -386,6 +390,7 @@ func (e Engine) retryLater(ctx context.Context, o Order, cause error) error {
 			return e.move(ctx, o, comp, fmt.Sprintf("gave up on %s after %d attempts: %v", strings.ToLower(o.Status), attempts, cause))
 		}
 	}
+	lab.Emit(ctx, lab.Event{Kind: lab.KindRetry, To: lab.DB(lab.Order), Label: o.Status, Detail: truncate(cause.Error(), 200), Order: o.ID})
 	delay := e.Backoff << min(attempts-1, 10)
 	if delay > time.Minute {
 		delay = time.Minute
@@ -401,7 +406,9 @@ func (e Engine) retryLater(ctx context.Context, o Order, cause error) error {
 
 // move commits a transition (only from the status we saw) with history and an event.
 func (e Engine) move(ctx context.Context, o Order, to, reason string) error {
-	return db.InTenantTx(ctx, e.DB, func(tx pgx.Tx) error {
+	moved := false
+	err := db.InTenantTx(ctx, e.DB, func(tx pgx.Tx) error {
+		moved = false
 		tag, err := tx.Exec(ctx, `UPDATE orders.orders SET status = $3, reason = $4, attempts = 0, last_error = '',
 			next_attempt_at = CASE WHEN $3 IN ('CONFIRMED', 'REJECTED') THEN NULL ELSE now() END, updated_at = now()
 			WHERE id = $1 AND status = $2`, o.ID, o.Status, to, reason)
@@ -409,8 +416,22 @@ func (e Engine) move(ctx context.Context, o Order, to, reason string) error {
 			return err // someone else moved it: the loop re-reads and carries on
 		}
 		o.Reason = reason
+		moved = true
 		return emit(ctx, tx, o, o.Status, to, reason)
 	})
+	if err == nil && moved {
+		kind := lab.KindState
+		if compensating(to) && !compensating(o.Status) {
+			kind = lab.KindCompensate
+		}
+		lab.Emit(ctx, lab.Event{Kind: kind, To: lab.DB(lab.Order), Label: to, OK: to != Rejected, Detail: reason, Order: o.ID})
+		lab.Emit(ctx, lab.Event{Kind: lab.KindOutbox, To: lab.DB(lab.Order), Label: "order." + strings.ToLower(to), OK: true, Order: o.ID})
+	}
+	return err
+}
+
+func compensating(s string) bool {
+	return s == VoidingPayment || s == RefundingPayment || s == ReleasingStock
 }
 
 func emit(ctx context.Context, tx pgx.Tx, o Order, from, to, note string) error {

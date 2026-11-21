@@ -22,6 +22,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"log/slog"
+	mrand "math/rand/v2"
 	"net/http"
 	"strings"
 	"sync"
@@ -41,6 +42,9 @@ type Config struct {
 	DuplicateWebhooks bool
 	Now               func() time.Time
 	Log               *slog.Logger
+	// Chaos, if set, is read on every request and overrides the static fault settings, so a
+	// controller (the Pattern Lab) can change them while the simulator runs.
+	Chaos func() (failPct int, latency time.Duration, duplicateWebhooks bool)
 }
 
 type stored struct {
@@ -115,12 +119,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			writeErr(w, http.StatusUnauthorized, "unauthorized", "bad API key")
 			return
 		}
+		latency := s.cfg.Latency
 		s.mu.Lock()
 		s.n++
 		fail := s.cfg.FailEvery > 0 && s.n%s.cfg.FailEvery == 0
+		if s.cfg.Chaos != nil {
+			pct, lat, _ := s.cfg.Chaos()
+			fail = fail || (pct > 0 && mrand.IntN(100) < pct)
+			latency += lat
+		}
 		s.mu.Unlock()
-		if s.cfg.Latency > 0 {
-			time.Sleep(s.cfg.Latency)
+		if latency > 0 {
+			time.Sleep(latency)
 		}
 		if fail {
 			writeErr(w, http.StatusServiceUnavailable, "unavailable", "chaos: injected failure")
@@ -284,7 +294,12 @@ func (s *Server) webhook(ev psp.Event) {
 	ev.Created = s.cfg.Now().Unix()
 	body, _ := json.Marshal(ev)
 	times := 1
-	if s.cfg.DuplicateWebhooks {
+	dup := s.cfg.DuplicateWebhooks
+	if s.cfg.Chaos != nil {
+		_, _, d := s.cfg.Chaos()
+		dup = dup || d
+	}
+	if dup {
 		times = 2
 	}
 	s.wg.Add(1)
