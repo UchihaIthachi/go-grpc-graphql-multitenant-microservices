@@ -33,8 +33,21 @@ type DB struct {
 	Owner *pgx.Conn     // the owner, for tests that must reach behind the app's back
 }
 
+// Set is one schema's migrations.
+type Set struct {
+	FS     fs.FS
+	Dir    string
+	Schema string
+}
+
 // New creates a database, runs the migrations in dir of fsys into schema, and returns pools.
 func New(t *testing.T, fsys fs.FS, dir, schema string) *DB {
+	t.Helper()
+	return NewSets(t, Set{fsys, dir, schema})
+}
+
+// NewSets is New for a service with several schemas, migrated in the order given.
+func NewSets(t *testing.T, sets ...Set) *DB {
 	t.Helper()
 	dsn := os.Getenv("TEST_PG_DSN")
 	if dsn == "" {
@@ -63,8 +76,10 @@ func New(t *testing.T, fsys fs.FS, dir, schema string) *DB {
 	if err != nil {
 		t.Fatalf("connect owner: %v", err)
 	}
-	if _, err := db.Migrate(ctx, owner, fsys, dir, schema, appRole); err != nil {
-		t.Fatalf("migrate: %v", err)
+	for _, st := range sets {
+		if _, err := db.Migrate(ctx, owner, st.FS, st.Dir, st.Schema, appRole); err != nil {
+			t.Fatalf("migrate %s: %v", st.Schema, err)
+		}
 	}
 	app, err := db.Open(ctx, withDB(t, dsn, name, appRole, appPassword))
 	if err != nil {

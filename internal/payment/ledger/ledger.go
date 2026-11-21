@@ -94,6 +94,20 @@ func (s Store) EnsureAccount(ctx context.Context, code, currency, kind string, a
 	}
 	var a Account
 	err := db.InTenantTx(ctx, s.DB, func(tx pgx.Tx) error {
+		var err error
+		a, err = EnsureAccountTx(ctx, tx, code, currency, kind, allowNegative)
+		return err
+	})
+	if db.Code(err) == db.CheckViolation {
+		return Account{}, fmt.Errorf("%w: %v", ErrInvalid, err)
+	}
+	return a, err
+}
+
+// EnsureAccountTx is EnsureAccount inside the caller's tenant transaction.
+func EnsureAccountTx(ctx context.Context, tx pgx.Tx, code, currency, kind string, allowNegative bool) (Account, error) {
+	var a Account
+	err := func() error {
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO ledger.accounts (tenant_id, code, currency, kind, allow_negative)
 			VALUES (current_setting('app.tenant_id')::uuid, $1, $2, $3, $4)
@@ -102,10 +116,7 @@ func (s Store) EnsureAccount(ctx context.Context, code, currency, kind string, a
 		}
 		return scanAccount(tx.QueryRow(ctx, `SELECT id, code, kind, allow_negative, balance_minor, currency
 			FROM ledger.accounts WHERE code = $1 AND currency = $2`, code, currency), &a)
-	})
-	if db.Code(err) == db.CheckViolation {
-		return Account{}, fmt.Errorf("%w: %v", ErrInvalid, err)
-	}
+	}()
 	return a, err
 }
 
@@ -184,9 +195,27 @@ func (s Store) Post(ctx context.Context, r EntryRequest) (e Entry, replayed bool
 	if err := r.Validate(); err != nil {
 		return Entry{}, false, err
 	}
-	h := r.hash()
 	err = db.InTenantTx(ctx, s.DB, func(tx pgx.Tx) error {
-		replayed = false
+		var err error
+		e, replayed, err = postTx(ctx, tx, r)
+		return err
+	})
+	return e, replayed, mapErr(err)
+}
+
+// PostTx is Post inside the caller's tenant transaction, so a money movement commits together
+// with the business state change that caused it (e.g. a payment becoming captured).
+func PostTx(ctx context.Context, tx pgx.Tx, r EntryRequest) (Entry, bool, error) {
+	if err := r.Validate(); err != nil {
+		return Entry{}, false, err
+	}
+	e, replayed, err := postTx(ctx, tx, r)
+	return e, replayed, mapErr(err)
+}
+
+func postTx(ctx context.Context, tx pgx.Tx, r EntryRequest) (e Entry, replayed bool, err error) {
+	h := r.hash()
+	err = func() error {
 		var id string
 		err := tx.QueryRow(ctx, `
 			INSERT INTO ledger.entries (tenant_id, idempotency_key, request_hash, kind, memo)
@@ -224,8 +253,8 @@ func (s Store) Post(ctx context.Context, r EntryRequest) (e Entry, replayed bool
 		}
 		e, err = loadEntry(ctx, tx, id)
 		return err
-	})
-	return e, replayed, mapErr(err)
+	}()
+	return e, replayed, err
 }
 
 func loadEntry(ctx context.Context, tx pgx.Tx, id string) (Entry, error) {
