@@ -1,5 +1,6 @@
 # Local stack: `make up`, then `make e2e`. GraphQL at http://localhost:8080/graphql,
 # Pattern Lab at http://localhost:8090, Redpanda Console at http://localhost:8081.
+# Host ports are taken? `GATEWAY_PORT=18080 LAB_PORT=18090 CONSOLE_PORT=18081 make up e2e`.
 name: shop
 
 x-service: &service
@@ -48,7 +49,7 @@ services:
     image: redpandadata/console:v2.7.2
     environment:
       KAFKA_BROKERS: redpanda:9092
-    ports: ["8081:8080"]
+    ports: ["${CONSOLE_PORT:-8081}:8080"]
     depends_on: { redpanda: { condition: service_healthy } }
 
   account:
@@ -108,7 +109,7 @@ services:
       CATALOG_ADDR: catalog:9000
       ORDER_ADDR: order:9000
       PAYMENT_ADDR: payment:9000
-    ports: ["8080:8080"]
+    ports: ["${GATEWAY_PORT:-8080}:8080"]
     depends_on: [account, catalog, order, payment]
 
   # Pattern Lab: live animation, chaos switches, load generator, invariant checks.
@@ -122,7 +123,7 @@ services:
       LAB_CATALOG_DB: postgres://owner:owner@postgres:5432/catalog
       LAB_PAYMENT_DB: postgres://owner:owner@postgres:5432/payment
       LAB_ORDERS_DB: postgres://owner:owner@postgres:5432/orders
-    ports: ["8090:8090"]
+    ports: ["${LAB_PORT:-8090}:8090"]
     depends_on:
       postgres: { condition: service_healthy }
 

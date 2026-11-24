@@ -3,7 +3,7 @@
 # Signs up a shop, adds products, registers a customer, places orders that succeed and fail,
 # checks isolation between shops, and checks the events reached Kafka.
 set -euo pipefail
-GQL=${GQL:-http://localhost:8080/graphql}
+GQL=${GQL:-http://localhost:${GATEWAY_PORT:-8080}/graphql}
 COMPOSE=${COMPOSE:-docker compose -f deploy/compose/docker-compose.yml}
 RUN=$(date +%s)
 pass=0; fail=0
@@ -79,7 +79,7 @@ events=$($COMPOSE exec -T redpanda rpk topic consume order.events -n 3 -f '%v\n'
 if [ "$(echo "$events" | grep -c '"status"')" -ge 3 ]; then ok "order events reached Kafka (outbox relay)"
 else bad "order events reached Kafka (outbox relay)" "$events"; fi
 
-LAB=${LAB:-http://localhost:8090}
+LAB=${LAB:-http://localhost:${LAB_PORT:-8090}}
 echo "choreographed saga (via Kafka)"
 if curl -sf -X PUT "$LAB/config" -d '{"chaos":{},"paused":{},"patterns":{"saga":"choreography"}}' >/dev/null; then
   sleep 2 # services poll the switch every second

@@ -46,7 +46,7 @@ logs:            ## follow service logs
 	$(COMPOSE) logs -f account catalog payment order gateway fakepsp
 
 e2e:             ## end-to-end checks against the running stack
-	COMPOSE='$(COMPOSE)' ./scripts/e2e.sh
+	COMPOSE='$(COMPOSE)' bash scripts/e2e.sh
 
 proto:           ## regenerate gen/ from api/proto (Docker)
 	docker run --rm -v "$$PWD":/w -w /w bufbuild/buf:1.47.2 lint
