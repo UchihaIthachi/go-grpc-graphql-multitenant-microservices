@@ -79,8 +79,29 @@ events=$($COMPOSE exec -T redpanda rpk topic consume order.events -n 3 -f '%v\n'
 if [ "$(echo "$events" | grep -c '"status"')" -ge 3 ]; then ok "order events reached Kafka (outbox relay)"
 else bad "order events reached Kafka (outbox relay)" "$events"; fi
 
-echo "pattern lab"
 LAB=${LAB:-http://localhost:8090}
+echo "choreographed saga (via Kafka)"
+if curl -sf -X PUT "$LAB/config" -d '{"chaos":{},"paused":{},"patterns":{"saga":"choreography"}}' >/dev/null; then
+  sleep 2 # services poll the switch every second
+  r=$(gql "$ACME" "$CREATE" '{"i":{"sku":"TENT","name":"Tent","price":{"amount":"80.00","currency":"USD"},"initialStock":3}}')
+  TENT=$(echo "$r" | jq -r .data.createProduct.id)
+  r=$(gql "$ALICE" "$PLACE" "{\"i\":{\"requestId\":\"c1-$RUN\",\"paymentMethod\":\"pm_ok\",\"lines\":[{\"productId\":\"$TENT\",\"qty\":1}]}}")
+  C1=$(echo "$r" | jq -r .data.placeOrder.id)
+  r=$(gql "$ALICE" "$PLACE" "{\"i\":{\"requestId\":\"c2-$RUN\",\"paymentMethod\":\"pm_decline\",\"lines\":[{\"productId\":\"$TENT\",\"qty\":1}]}}")
+  C2=$(echo "$r" | jq -r .data.placeOrder.id)
+  for _ in $(seq 30); do # events take a few hops; poll until both finish
+    r=$(gql "$ALICE" "query { a: order(id: \"$C1\") { status } b: order(id: \"$C2\") { status reason } t: product(id: \"$TENT\") { available } }")
+    echo "$r" | jq -e '.data.a.status == "CONFIRMED" and .data.b.status == "REJECTED"' >/dev/null 2>&1 && break
+    sleep 1
+  done
+  check "choreography: paid order confirmed" "$r" '.data.a.status == "CONFIRMED"'
+  check "choreography: declined order rejected, stock released" "$r" '.data.b.status == "REJECTED" and .data.t.available == 2'
+  curl -sf -X PUT "$LAB/config" -d '{"chaos":{},"paused":{},"patterns":{"saga":"orchestration"}}' >/dev/null
+else
+  bad "choreographed saga" "lab not reachable at $LAB"
+fi
+
+echo "pattern lab"
 if inv=$(curl -sf "$LAB/invariants"); then
   check "lab invariants hold (no oversell, ledger balanced, money matches orders)" "$inv" '[.[] | select(.kind == "invariant")] | length > 0 and all(.ok)'
 else

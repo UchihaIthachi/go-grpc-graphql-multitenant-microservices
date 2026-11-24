@@ -36,6 +36,7 @@ func main() {
 	s := payment.Service{DB: pool, PSP: psp.HTTPClient{BaseURL: svc.Must("PSP_URL"), APIKey: svc.Must("PSP_API_KEY"),
 		HTTP: &http.Client{Timeout: 5 * time.Second, Transport: lab.Transport(lab.PSP, nil)}}}
 	svc.Relay(ctx, log, pool, "payment.outbox", "payment")
+	svc.Consume(ctx, log, "payment", payment.ConsumerGroup, payment.ConsumeTopics, s.HandleEvent)
 
 	mux := http.NewServeMux()
 	mux.Handle("POST /webhooks/psp", lab.Incoming(lab.PSP, lab.KindWebhook, "webhook",

@@ -31,6 +31,8 @@ func main() {
 	ttl, _ := time.ParseDuration(svc.Env("RESERVATION_TTL", "15m"))
 	store := catalog.Store{DB: pool, TTL: ttl}
 	go sweep(ctx, log, store)
+	svc.Relay(ctx, log, pool, "catalog.outbox", "catalog")
+	svc.Consume(ctx, log, "catalog", catalog.ConsumerGroup, catalog.ConsumeTopics, store.HandleEvent)
 
 	srv := grpc.NewServer(grpcx.ServerOptions(v, log)...)
 	catalogv1.RegisterCatalogServiceServer(srv, catalog.Server{Store: store})

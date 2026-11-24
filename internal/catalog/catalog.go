@@ -191,6 +191,36 @@ func (s Store) AdjustStock(ctx context.Context, productID string, delta int) (Pr
 // for the same order returns the existing reservations instead of reserving twice; an order whose
 // reservations were released gets ErrReservationGone.
 func (s Store) Reserve(ctx context.Context, orderID string, lines []Line) ([]Reservation, error) {
+	var out []Reservation
+	err := db.InTenantTx(ctx, s.DB, func(tx pgx.Tx) error {
+		var err error
+		out, err = s.ReserveTx(ctx, tx, orderID, lines)
+		return err
+	})
+	if errors.Is(err, errReplay) {
+		out, err = s.Reservations(ctx, orderID)
+		if err == nil {
+			for _, r := range out {
+				if r.Status == "released" {
+					return out, ErrReservationGone
+				}
+			}
+		}
+	}
+	return out, reserveErr(err)
+}
+
+func reserveErr(err error) error {
+	if db.Code(err) == db.ForeignKeyViolation || db.Code(err) == "22P02" {
+		return fmt.Errorf("%w: unknown product", ErrNotFound)
+	}
+	return err
+}
+
+// ReserveTx is Reserve inside the caller's transaction (the event handlers use it so the
+// reservation, the inbox record and the outgoing event commit together). It returns errReplay
+// (IsReplay) if the order was already reserved.
+func (s Store) ReserveTx(ctx context.Context, tx pgx.Tx, orderID string, lines []Line) ([]Reservation, error) {
 	if orderID == "" || len(lines) == 0 {
 		return nil, fmt.Errorf("%w: order id and at least one line required", ErrInvalid)
 	}
@@ -210,57 +240,36 @@ func (s Store) Reserve(ctx context.Context, orderID string, lines []Line) ([]Res
 	if ttl == 0 {
 		ttl = DefaultTTL
 	}
-
-	var out []Reservation
-	err := db.InTenantTx(ctx, s.DB, func(tx pgx.Tx) error {
-		out = nil
-		for i, id := range ids {
-			tag, err := tx.Exec(ctx, `INSERT INTO catalog.reservations (tenant_id, order_id, product_id, qty, expires_at)
-				VALUES (current_setting('app.tenant_id')::uuid, $1, $2, $3, now() + $4::interval)
-				ON CONFLICT (tenant_id, order_id, product_id) DO NOTHING`, orderID, id, merged[id], ttl.String())
-			if err != nil {
-				return err
-			}
-			if tag.RowsAffected() == 0 {
-				if i > 0 {
-					return fmt.Errorf("%w: order %s was reserved with different lines", ErrConflict, orderID)
-				}
-				// a previous (or concurrent, now committed) call reserved this order: replay it
-				return errReplay
-			}
-			// the conditional update IS the availability check; the CHECK constraint backs it up
-			var reserved int
-			err = tx.QueryRow(ctx, `UPDATE catalog.stock SET reserved = reserved + $2
-				WHERE product_id = $1 AND on_hand - reserved >= $2 RETURNING reserved`, id, merged[id]).Scan(&reserved)
-			if errors.Is(err, pgx.ErrNoRows) {
-				var avail int
-				if e := tx.QueryRow(ctx, `SELECT on_hand - reserved FROM catalog.stock WHERE product_id = $1`, id).Scan(&avail); errors.Is(e, pgx.ErrNoRows) {
-					return fmt.Errorf("%w: product %s", ErrNotFound, id)
-				}
-				return &OutOfStockError{ProductID: id, Wanted: merged[id], Available: avail}
-			}
-			if err != nil {
-				return err
-			}
+	for i, id := range ids {
+		tag, err := tx.Exec(ctx, `INSERT INTO catalog.reservations (tenant_id, order_id, product_id, qty, expires_at)
+			VALUES (current_setting('app.tenant_id')::uuid, $1, $2, $3, now() + $4::interval)
+			ON CONFLICT (tenant_id, order_id, product_id) DO NOTHING`, orderID, id, merged[id], ttl.String())
+		if err != nil {
+			return nil, err
 		}
-		var err error
-		out, err = reservations(ctx, tx, orderID)
-		return err
-	})
-	if errors.Is(err, errReplay) {
-		out, err = s.Reservations(ctx, orderID)
-		if err == nil {
-			for _, r := range out {
-				if r.Status == "released" {
-					return out, ErrReservationGone
-				}
+		if tag.RowsAffected() == 0 {
+			if i > 0 {
+				return nil, fmt.Errorf("%w: order %s was reserved with different lines", ErrConflict, orderID)
 			}
+			// a previous (or concurrent, now committed) call reserved this order: replay it
+			return nil, errReplay
+		}
+		// the conditional update IS the availability check; the CHECK constraint backs it up
+		var reserved int
+		err = tx.QueryRow(ctx, `UPDATE catalog.stock SET reserved = reserved + $2
+			WHERE product_id = $1 AND on_hand - reserved >= $2 RETURNING reserved`, id, merged[id]).Scan(&reserved)
+		if errors.Is(err, pgx.ErrNoRows) {
+			var avail int
+			if e := tx.QueryRow(ctx, `SELECT on_hand - reserved FROM catalog.stock WHERE product_id = $1`, id).Scan(&avail); errors.Is(e, pgx.ErrNoRows) {
+				return nil, fmt.Errorf("%w: product %s", ErrNotFound, id)
+			}
+			return nil, &OutOfStockError{ProductID: id, Wanted: merged[id], Available: avail}
+		}
+		if err != nil {
+			return nil, err
 		}
 	}
-	if db.Code(err) == db.ForeignKeyViolation || db.Code(err) == "22P02" {
-		return nil, fmt.Errorf("%w: unknown product", ErrNotFound)
-	}
-	return out, err
+	return reservations(ctx, tx, orderID)
 }
 
 var errReplay = errors.New("replay")
@@ -268,60 +277,65 @@ var errReplay = errors.New("replay")
 // Commit turns an order's reservations into a sale: the units leave stock for good.
 // It fails with ErrReservationGone if the reservation expired or was released first.
 func (s Store) Commit(ctx context.Context, orderID string) error {
-	return db.InTenantTx(ctx, s.DB, func(tx pgx.Tx) error {
-		rs, err := lockReservations(ctx, tx, orderID)
-		if err != nil {
+	return db.InTenantTx(ctx, s.DB, func(tx pgx.Tx) error { return CommitTx(ctx, tx, orderID) })
+}
+
+// CommitTx is Commit inside the caller's transaction.
+func CommitTx(ctx context.Context, tx pgx.Tx, orderID string) error {
+	rs, err := lockReservations(ctx, tx, orderID)
+	if err != nil {
+		return err
+	}
+	for _, r := range rs {
+		switch r.Status {
+		case "committed":
+			continue
+		case "released":
+			return ErrReservationGone
+		}
+		if time.Now().After(r.ExpiresAt) {
+			return ErrReservationGone // expired; the sweeper will hand the units back
+		}
+		if _, err := tx.Exec(ctx, `UPDATE catalog.stock SET on_hand = on_hand - $2, reserved = reserved - $2 WHERE product_id = $1`, r.ProductID, r.Qty); err != nil {
 			return err
 		}
-		for _, r := range rs {
-			switch r.Status {
-			case "committed":
-				continue
-			case "released":
-				return ErrReservationGone
-			}
-			if time.Now().After(r.ExpiresAt) {
-				return ErrReservationGone // expired; the sweeper will hand the units back
-			}
-			if _, err := tx.Exec(ctx, `UPDATE catalog.stock SET on_hand = on_hand - $2, reserved = reserved - $2 WHERE product_id = $1`, r.ProductID, r.Qty); err != nil {
-				return err
-			}
-			if _, err := tx.Exec(ctx, `UPDATE catalog.reservations SET status = 'committed' WHERE order_id = $1 AND product_id = $2`, orderID, r.ProductID); err != nil {
-				return err
-			}
+		if _, err := tx.Exec(ctx, `UPDATE catalog.reservations SET status = 'committed' WHERE order_id = $1 AND product_id = $2`, orderID, r.ProductID); err != nil {
+			return err
 		}
-		return nil
-	})
+	}
+	return nil
 }
 
 // Release gives an order's reserved units back. Releasing twice is fine; releasing a committed
 // order is not (that would need a restock).
 func (s Store) Release(ctx context.Context, orderID string) error {
-	err := db.InTenantTx(ctx, s.DB, func(tx pgx.Tx) error {
-		rs, err := lockReservations(ctx, tx, orderID)
-		if errors.Is(err, ErrNotFound) {
-			return nil // nothing was ever reserved: nothing to give back
+	return db.InTenantTx(ctx, s.DB, func(tx pgx.Tx) error { return ReleaseTx(ctx, tx, orderID) })
+}
+
+// ReleaseTx is Release inside the caller's transaction.
+func ReleaseTx(ctx context.Context, tx pgx.Tx, orderID string) error {
+	rs, err := lockReservations(ctx, tx, orderID)
+	if errors.Is(err, ErrNotFound) {
+		return nil // nothing was ever reserved: nothing to give back
+	}
+	if err != nil {
+		return err
+	}
+	for _, r := range rs {
+		switch r.Status {
+		case "released":
+			continue
+		case "committed":
+			return fmt.Errorf("%w: order %s is committed", ErrInvalidState, orderID)
 		}
-		if err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE catalog.stock SET reserved = reserved - $2 WHERE product_id = $1`, r.ProductID, r.Qty); err != nil {
 			return err
 		}
-		for _, r := range rs {
-			switch r.Status {
-			case "released":
-				continue
-			case "committed":
-				return fmt.Errorf("%w: order %s is committed", ErrInvalidState, orderID)
-			}
-			if _, err := tx.Exec(ctx, `UPDATE catalog.stock SET reserved = reserved - $2 WHERE product_id = $1`, r.ProductID, r.Qty); err != nil {
-				return err
-			}
-			if _, err := tx.Exec(ctx, `UPDATE catalog.reservations SET status = 'released' WHERE order_id = $1 AND product_id = $2`, orderID, r.ProductID); err != nil {
-				return err
-			}
+		if _, err := tx.Exec(ctx, `UPDATE catalog.reservations SET status = 'released' WHERE order_id = $1 AND product_id = $2`, orderID, r.ProductID); err != nil {
+			return err
 		}
-		return nil
-	})
-	return err
+	}
+	return nil
 }
 
 // Reservations lists an order's reservations.

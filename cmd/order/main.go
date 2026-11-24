@@ -41,9 +41,12 @@ func main() {
 	}
 	engine := order.Engine{DB: pool, Log: log,
 		Catalog:  grpcdeps.Catalog{C: catalogv1.NewCatalogServiceClient(cat)},
-		Payments: grpcdeps.Payments{C: paymentv1.NewPaymentServiceClient(pay)}}
+		Payments: grpcdeps.Payments{C: paymentv1.NewPaymentServiceClient(pay)},
+		// saga style for new orders: the Pattern Lab's switch, else SAGA_MODE, else orchestration
+		Mode: func() string { return lab.Current().Pattern("saga", svc.Env("SAGA_MODE", order.Orchestration)) }}
 	go engine.RunRecovery(ctx, time.Second)
 	svc.Relay(ctx, log, pool, "orders.outbox", "order")
+	svc.Consume(ctx, log, "order", order.ConsumerGroup, order.ConsumeTopics, engine.HandleEvent)
 
 	srv := grpc.NewServer(grpcx.ServerOptions(v, log)...)
 	orderv1.RegisterOrderServiceServer(srv, order.Server{Engine: engine})

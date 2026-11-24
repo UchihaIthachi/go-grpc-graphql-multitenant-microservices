@@ -9,7 +9,7 @@
   --bg: #f6f7f9; --panel: #ffffff; --ink: #1b1f24; --muted: #5b6573; --line: #d8dde4; --edge: #c3cad3;
   --node: #ffffff; --node-ink: #1b1f24; --db: #eef2f6;
   --rpc: #2f6fde; --err: #d33a3a; --db-ev: #138a7e; --state: #2e9d47; --comp: #8b4fd6; --retry: #d98a00;
-  --outbox: #64748b; --pub: #e0621b; --hook: #c2408f; --chaos: #d33a3a;
+  --outbox: #64748b; --pub: #e0621b; --hook: #c2408f; --chaos: #d33a3a; --consume: #0e9fb3;
   --ok: #2e9d47; --warn: #d98a00; --chip: #eef1f5;
 }
 @media (prefers-color-scheme: dark) {
@@ -18,6 +18,7 @@
     --node: #1e242c; --node-ink: #e7eaee; --db: #1a2027;
     --rpc: #5b93ff; --err: #ff6363; --db-ev: #2fc0ad; --state: #4cc76a; --comp: #b07cff; --retry: #f2b13a;
     --outbox: #8a98ab; --pub: #ff8a4c; --hook: #f06bb5; --chaos: #ff6363; --ok: #4cc76a; --warn: #f2b13a; --chip: #222932;
+    --consume: #3cc8dc;
   }
 }
 :root[data-theme="dark"] {
@@ -25,6 +26,7 @@
   --node: #1e242c; --node-ink: #e7eaee; --db: #1a2027;
   --rpc: #5b93ff; --err: #ff6363; --db-ev: #2fc0ad; --state: #4cc76a; --comp: #b07cff; --retry: #f2b13a;
   --outbox: #8a98ab; --pub: #ff8a4c; --hook: #f06bb5; --chaos: #ff6363; --ok: #4cc76a; --warn: #f2b13a; --chip: #222932;
+  --consume: #3cc8dc;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
@@ -82,6 +84,10 @@ input[type=range] { flex: 1.3; accent-color: var(--rpc); }
 .check .kind { color: var(--muted); font-size: 11px; font-weight: 500; margin-left: 6px; }
 .switch-list .sw { padding: 6px 0; border-bottom: 1px dashed var(--line); color: var(--muted); font-size: 13px; }
 .switch-list .sw b { color: var(--ink); font-weight: 600; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin: 6px 0; }
+.seg button { flex: 1; border: 0; border-radius: 0; background: var(--chip); padding: 7px 8px; }
+.seg button.on { background: var(--rpc); color: #fff; font-weight: 600; }
+.explain { font-size: 12.5px; color: var(--muted); margin: 4px 0 10px; }
 #log { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 #log .ev { display: grid; grid-template-columns: 62px 74px 1fr; gap: 6px; padding: 2px 0; border-bottom: 1px solid var(--line); }
 #log .t { color: var(--muted); }
@@ -138,6 +144,9 @@ a.order { color: var(--rpc); cursor: pointer; text-decoration: underline; }
       <div class="row"><button id="resetChaos">Reset chaos</button></div>
 
       <h3>Pattern switches</h3>
+      <div><b>Saga style</b> <span class="muted">(new orders; each keeps its own)</span></div>
+      <div class="seg" id="sagaSeg"><button data-v="orchestration">Orchestration</button><button data-v="choreography">Choreography</button></div>
+      <div class="explain" id="sagaExplain"></div>
       <div class="switch-list muted" id="switches"></div>
     </div>
     <div class="pane" id="pane-checks">
@@ -179,13 +188,15 @@ const EDGES = [
   ["gateway", "account", 0], ["gateway", "catalog", 0], ["gateway", "order", 0], ["gateway", "payment", 0],
   ["order", "catalog", 70], ["order", "payment", 70],
   ["catalog", "catalog-db", 0], ["order", "order-db", 0], ["payment", "payment-db", 0], ["account", "account-db", 0],
-  ["order", "kafka", -70], ["payment", "kafka", 40],
+  // Kafka edges bend around the database boxes (positive bend = to the right of travel)
+  ["order", "kafka", -70], ["payment", "kafka", 40], ["catalog", "kafka", 70],
+  ["kafka", "catalog", -120], ["kafka", "order", 130], ["kafka", "payment", 50],
   ["payment", "psp", 70], ["psp", "payment", -120],
 ];
 const COLORS = { rpc: "--rpc", db: "--db-ev", state: "--state", compensate: "--comp", retry: "--retry",
-  outbox: "--outbox", publish: "--pub", webhook: "--hook", chaos: "--chaos" };
+  outbox: "--outbox", publish: "--pub", webhook: "--hook", chaos: "--chaos", consume: "--consume", deadletter: "--err" };
 const LEGEND = [["rpc", "call (gRPC/HTTP)"], ["db", "database write"], ["state", "saga step"], ["compensate", "compensation"],
-  ["retry", "retry scheduled"], ["outbox", "outbox row"], ["publish", "published to Kafka"], ["webhook", "webhook"], ["err", "failed"]];
+  ["retry", "retry scheduled"], ["outbox", "outbox row"], ["publish", "published to Kafka"], ["consume", "consumed from Kafka"], ["webhook", "webhook"], ["err", "failed"]];
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const svg = document.getElementById("svg");
 const NS = "http://www.w3.org/2000/svg";
@@ -274,7 +285,7 @@ const STATS = [
   ["retry", "retries/s", e => e.kind === "retry"],
   ["comp", "compensations/s", e => e.kind === "compensate"],
   ["pub", "published/s", e => e.kind === "publish"],
-  ["hook", "webhooks/s", e => e.kind === "webhook"],
+  ["cons", "consumed/s", e => e.kind === "consume"],
 ];
 const statBuckets = Object.fromEntries(STATS.map(s => [s[0], []]));
 document.getElementById("stats").innerHTML = STATS.map(([k, l]) => `<div><b id="st-${k}">0</b><span>${l}</span></div>`).join("");
@@ -397,21 +408,33 @@ function applyCfg() {
   $("pspLat").value = cfg.chaos.psp_latency_ms || 0; $("pspLatOut").textContent = (cfg.chaos.psp_latency_ms || 0) + " ms";
   $("dupHooks").checked = !!cfg.chaos.duplicate_webhooks;
   for (const s of SERVICES) $("pause-" + s).checked = !!paused[s];
+  renderSaga();
 }
+const SAGA_TEXT = {
+  orchestration: "The order service calls catalog and payment itself, step by step (blue calls from Order). Retries and undo steps live in one place; the recovery loop finishes anything interrupted.",
+  choreography: "Nobody is in charge. Order publishes order.placed; catalog, payment and order react to each other's events through Kafka (cyan dots). Watch: no calls from Order, more hops, and order states that can skip steps when events arrive out of order.",
+};
+function renderSaga() {
+  const v = (cfg.patterns || {}).saga || "orchestration";
+  document.querySelectorAll("#sagaSeg button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  $("sagaExplain").textContent = SAGA_TEXT[v];
+}
+document.querySelectorAll("#sagaSeg button").forEach(b => b.onclick = () => {
+  cfg.patterns = cfg.patterns || {}; cfg.patterns.saga = b.dataset.v; renderSaga(); sendCfg();
+});
 const SWITCHES = [
   ["Resilience on processor calls", "none · retry · backoff+jitter · circuit breaker · bulkhead", "B"],
   ["Timeouts", "off ⚠ · on", "B"],
   ["Idempotency key on placeOrder", "off ⚠ · on", "B"],
   ["Stock reservation", "read-then-write ⚠ · atomic update", "B"],
   ["Rate limiting", "off · per-tenant token bucket", "B"],
-  ["Saga style", "orchestration · choreography", "C"],
   ["Event delivery", "dual write ⚠ · outbox + polling · outbox + CDC", "C"],
   ["Consumers", "naive ⚠ · inbox + dead-letter queue", "C"],
   ["Reads", "API composition · CQRS projection", "C"],
   ["Tenant isolation", "app filter ⚠ · Postgres RLS", "C"],
 ];
 $("switches").innerHTML = SWITCHES.map(([n, o, p]) => `<div class="sw"><b>${n}</b><br>${o} <span class="muted">— phase ${p}</span></div>`).join("") +
-  `<p class="muted" style="font-size:12px">Today the system runs the safe option of each: orchestration, outbox + polling, atomic stock updates, idempotency keys and RLS.</p>`;
+  `<p class="muted" style="font-size:12px">Not switchable yet; today the system runs the safe option of each: outbox + polling, atomic stock updates, idempotency keys and RLS.</p>`;
 
 // ---------- invariants ----------
 function renderChecks(list) {
@@ -459,6 +482,7 @@ $("theme").onclick = () => {
 function escapeHtml(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 api("GET", "load").then(renderLoad).catch(() => {});
 api("GET", "invariants").then(renderChecks).catch(() => {});
+renderSaga();
 </script>
 </body>
 </html>

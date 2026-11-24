@@ -136,6 +136,10 @@ type Engine struct {
 	StepTimeout time.Duration // per remote call (default 5 s)
 	Lease       time.Duration // how long one runner owns an order (default 30 s)
 	Backoff     time.Duration // first retry delay, doubled per attempt, capped at 1 min (default 200 ms)
+
+	// Mode picks the saga style for each new order: Orchestration (default) or Choreography.
+	// The Pattern Lab switches it at runtime; an order keeps the style it was placed with.
+	Mode func() string
 }
 
 func (e Engine) defaults() Engine {
@@ -221,12 +225,17 @@ func (e Engine) Place(ctx context.Context, in PlaceInput, waitFor time.Duration)
 		lines = append(lines, OrderLine{ProductID: id, SKU: p.SKU, Name: p.Name, Qty: qty[id], UnitPrice: p.Price})
 	}
 
+	mode := Orchestration
+	if e.Mode != nil && e.Mode() == Choreography {
+		mode = Choreography
+	}
 	var id string
 	err = db.InTenantTx(ctx, e.DB, func(tx pgx.Tx) error {
-		err := tx.QueryRow(ctx, `INSERT INTO orders.orders (tenant_id, request_id, customer_id, payment_method, total_minor, currency, next_attempt_at)
-			VALUES (current_setting('app.tenant_id')::uuid, $1, $2, $3, $4, $5, now())
+		// choreographed orders have no next attempt: the recovery loop never drives them
+		err := tx.QueryRow(ctx, `INSERT INTO orders.orders (tenant_id, request_id, customer_id, payment_method, total_minor, currency, saga_mode, next_attempt_at)
+			VALUES (current_setting('app.tenant_id')::uuid, $1, $2, $3, $4, $5, $6, CASE WHEN $6 = 'orchestration' THEN now() END)
 			ON CONFLICT (tenant_id, request_id) DO NOTHING RETURNING id`,
-			in.RequestID, in.CustomerID, in.PaymentMethod, total.Amount, total.Currency).Scan(&id)
+			in.RequestID, in.CustomerID, in.PaymentMethod, total.Amount, total.Currency, mode).Scan(&id)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return errDuplicate // a concurrent Place with the same request id won
 		}
@@ -240,7 +249,13 @@ func (e Engine) Place(ctx context.Context, in PlaceInput, waitFor time.Duration)
 			}
 		}
 		o := Order{ID: id, CustomerID: in.CustomerID, Status: Pending, Total: total}
-		return emit(ctx, tx, o, "", Pending, "placed")
+		if err := emit(ctx, tx, o, "", Pending, "placed"); err != nil {
+			return err
+		}
+		if mode == Choreography {
+			return placedEvent(ctx, tx, o, in.PaymentMethod, lines)
+		}
+		return nil
 	})
 	if errors.Is(err, errDuplicate) {
 		return e.byRequest(ctx, in.RequestID)
@@ -253,6 +268,10 @@ func (e Engine) Place(ctx context.Context, in PlaceInput, waitFor time.Duration)
 	lab.Emit(ctx, lab.Event{Kind: lab.KindOutbox, To: lab.DB(lab.Order), Label: "order.pending", OK: true, Order: id})
 	wctx, cancel := context.WithTimeout(ctx, waitFor)
 	defer cancel()
+	if mode == Choreography {
+		lab.Emit(ctx, lab.Event{Kind: lab.KindOutbox, To: lab.DB(lab.Order), Label: "order.placed", OK: true, Order: id})
+		return e.waitFinished(wctx, id) // nobody to call: the other services react to order.placed
+	}
 	if err := e.Advance(wctx, id); err != nil && wctx.Err() == nil {
 		e.Log.Warn("saga paused; recovery will continue", "order", id, "err", err)
 	}

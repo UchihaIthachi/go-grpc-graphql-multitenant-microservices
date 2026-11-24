@@ -175,6 +175,9 @@ func (g *LoadGen) placeOne(ctx context.Context) {
 		`mutation($i: PlaceOrderInput!) { placeOrder(input: $i) { id status reason } }`,
 		map[string]any{"i": map[string]any{"requestId": "lab-" + randHex(8), "paymentMethod": pick(mix), "lines": lines}}, &res)
 	ms := time.Since(start).Milliseconds()
+	if ctx.Err() != nil {
+		return // load was stopped mid-request: not the system's fault
+	}
 
 	g.mu.Lock()
 	defer g.mu.Unlock()

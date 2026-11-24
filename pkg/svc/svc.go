@@ -24,6 +24,7 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/pkg/auth"
+	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/pkg/bus"
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/pkg/db"
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/pkg/kafka"
 	"github.com/UchihaIthachi/go-grpc-graphql-multitenant-microservices/pkg/lab"
@@ -179,8 +180,38 @@ func Relay(ctx context.Context, log *slog.Logger, pool *pgxpool.Pool, table, cli
 	if err != nil {
 		Fatal(log, "kafka", err)
 	}
+	iv, err := time.ParseDuration(Env("OUTBOX_INTERVAL", "200ms"))
+	if err != nil {
+		iv = 200 * time.Millisecond
+	}
 	go func() {
-		outbox.Relay{DB: pool, Table: table, Pub: pub, Log: log}.Run(ctx)
+		outbox.Relay{DB: pool, Table: table, Pub: pub, Interval: iv, Log: log}.Run(ctx)
 		pub.Close()
+	}()
+}
+
+// Consume runs h for topics as consumer group `group` if KAFKA_BROKERS is set, restarting the
+// consumer if it stops with an error. Messages that keep failing go to <topic>.dlq.
+func Consume(ctx context.Context, log *slog.Logger, service, group string, topics []string, h bus.Handler) {
+	brokers := os.Getenv("KAFKA_BROKERS")
+	if brokers == "" {
+		log.Warn("KAFKA_BROKERS not set: event consumer disabled (choreographed sagas won't progress)", "group", group)
+		return
+	}
+	list := strings.Split(brokers, ",")
+	dlq, err := kafka.New(list, service+"-dlq")
+	if err != nil {
+		Fatal(log, "kafka", err)
+	}
+	sub := kafka.Subscriber{Brokers: list, ClientID: service}
+	go func() {
+		defer dlq.Close()
+		for ctx.Err() == nil {
+			err := bus.Consume(ctx, sub, group, topics, h, bus.Options{Service: service, DLQ: dlq, Log: log})
+			if err != nil && ctx.Err() == nil {
+				log.Warn("consumer stopped; restarting", "group", group, "err", err)
+				time.Sleep(time.Second)
+			}
+		}
 	}()
 }

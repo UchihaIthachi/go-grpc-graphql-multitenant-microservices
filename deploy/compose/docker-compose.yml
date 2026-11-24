@@ -12,6 +12,7 @@ x-service: &service
     LOG_LEVEL: info
     APP_DB_ROLE: app
     KAFKA_BROKERS: redpanda:9092
+    OUTBOX_INTERVAL: 100ms
     LAB_URL: http://lab:8090
     LAB_TOKEN: ${LAB_TOKEN:-local-lab-token}
   depends_on: &deps

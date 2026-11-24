@@ -46,6 +46,8 @@ const (
 	KindPublish    = "publish"    // relay sent outbox rows to Kafka
 	KindWebhook    = "webhook"    // processor → payment
 	KindChaos      = "chaos"      // a fault the lab injected
+	KindConsume    = "consume"    // a service handled an event from Kafka
+	KindDeadLetter = "deadletter" // an event kept failing and was parked on a .dlq topic
 )
 
 // Event is one thing that happened, small enough to send by the thousand.
